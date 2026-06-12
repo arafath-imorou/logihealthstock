@@ -17,52 +17,80 @@ export default function Dashboard() {
   const { stockCentral, stockPharmacie, medicaments, dispensations, transferts, notifications } = useStore();
 
   // 1. Calculate values
-  const totalCentralItems = stockCentral.reduce((acc, item) => acc + item.quantite, 0);
-  const totalPharmacieItems = stockPharmacie.reduce((acc, item) => acc + item.quantite, 0);
-  
-  // Mock Stock Value: suppose average price is $5 (or CFA 3000) per item
-  const stockValue = (totalCentralItems + totalPharmacieItems) * 3000;
+  // Unique products at Central Store
+  const uniqueCentralProducts = new Set(stockCentral.map(item => item.medicamentId)).size;
+  const totalCentralUnits = stockCentral.reduce((acc, item) => acc + item.quantite, 0);
 
-  // Ruptures (meds in catalogue but 0 in pharmacy and central)
+  // Unique products at Pharmacy
+  const uniquePharmacieProducts = new Set(stockPharmacie.map(item => item.medicamentId)).size;
+  const totalPharmacieUnits = stockPharmacie.reduce((acc, item) => acc + item.quantite, 0);
+
+  // Expiration metrics (lots expiring in less than 90 days)
+  const today = new Date();
+  const ninetyDaysFromNow = new Date();
+  ninetyDaysFromNow.setDate(today.getDate() + 90);
+
+  const itemsNearExpiration = [...stockCentral, ...stockPharmacie].filter(item => {
+    const expDate = new Date(item.expiration);
+    return expDate > today && expDate <= ninetyDaysFromNow;
+  });
+  const nearExpiration = itemsNearExpiration.length;
+
+  // Ruptures (medicines in catalog with 0 stock in both central and pharmacy)
   const ruptures = medicaments.filter(med => {
     const inCentral = stockCentral.filter(s => s.medicamentId === med.id).reduce((acc, s) => acc + s.quantite, 0);
     const inPharmacie = stockPharmacie.filter(s => s.medicamentId === med.id).reduce((acc, s) => acc + s.quantite, 0);
     return inCentral === 0 && inPharmacie === 0;
   }).length;
 
-  // Low stocks (stock in pharmacy <= seuilAlerte or stock in central <= seuilAlerte * 2)
-  const lowStocks = medicaments.filter(med => {
-    const inPharmacie = stockPharmacie.filter(s => s.medicamentId === med.id).reduce((acc, s) => acc + s.quantite, 0);
-    return inPharmacie > 0 && inPharmacie <= med.seuilAlerte;
-  }).length;
+  // Total stock value (quantity in stock * sale price in the central catalog)
+  const stockValue = [...stockCentral, ...stockPharmacie].reduce((acc, item) => {
+    const med = medicaments.find(m => m.id === item.medicamentId);
+    return acc + (item.quantite * (med?.prixVente || 0));
+  }, 0);
 
-  // Expiration metrics
-  const today = new Date();
-  const ninetyDaysFromNow = new Date();
-  ninetyDaysFromNow.setDate(today.getDate() + 90);
-
-  const nearExpiration = [...stockCentral, ...stockPharmacie].filter(item => {
-    const expDate = new Date(item.expiration);
-    return expDate > today && expDate <= ninetyDaysFromNow;
-  }).length;
-
-  const expired = [...stockCentral, ...stockPharmacie].filter(item => {
-    const expDate = new Date(item.expiration);
-    return expDate <= today;
-  }).length;
-
-  // Transferts en attente
-  const pendingTransfers = transferts.filter(t => t.statut === 'attente' || t.statut === 'transfere').length;
-
-  // Patients served today
-  const patientsServedToday = dispensations.filter(d => {
-    const dispDate = new Date(d.date);
-    return dispDate.toDateString() === today.toDateString();
-  }).length;
+  // Sales Today (total price of products dispensed today)
+  const salesToday = dispensations
+    .filter(d => new Date(d.date).toDateString() === today.toDateString())
+    .reduce((acc, d) => {
+      const dispValue = d.items.reduce((itemAcc, item) => {
+        const med = medicaments.find(m => m.id === item.medicamentId);
+        return itemAcc + (item.quantiteDelivree * (med?.prixVente || 0));
+      }, 0);
+      return acc + dispValue;
+    }, 0);
 
   return (
     <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
+      {/* CSS injection for premium card hover effects */}
+      <style>{`
+        .dashboard-kpi-card {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+          cursor: pointer;
+        }
+        .dashboard-kpi-card:hover {
+          transform: translateY(-5px);
+          box-shadow: var(--shadow-lg);
+          border-color: rgba(30, 64, 175, 0.15);
+        }
+        .dashboard-kpi-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 4px;
+          height: 100%;
+          background: var(--card-accent, var(--primary-blue));
+          transition: width 0.2s ease;
+        }
+        .dashboard-kpi-card:hover::before {
+          width: 6px;
+        }
+      `}</style>
+
       {/* Header Banner */}
       <div style={{ display: 'flex', justifyContent: 'between', alignItems: 'center' }}>
         <div>
@@ -78,94 +106,102 @@ export default function Dashboard() {
       {/* Grid of KPIs */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '1rem'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '1.25rem'
       }}>
-        {/* KPI 1 */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--primary-blue)' }}>
-          <div style={{ backgroundColor: '#EFF6FF', padding: '0.75rem', borderRadius: '12px', color: 'var(--primary-blue)' }}>
+        {/* KPI 1: Magasin Central */}
+        <div className="card dashboard-kpi-card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', '--card-accent': '#3B82F6' } as React.CSSProperties}>
+          <div style={{ backgroundColor: '#EFF6FF', padding: '0.85rem', borderRadius: '12px', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Warehouse size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Stock Central</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{totalCentralItems} <span style={{ fontSize: '0.8rem', fontWeight: 400 }}>U.</span></div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Magasin Central</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.2rem' }}>
+              {uniqueCentralProducts} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>Produits</span>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              {totalCentralUnits.toLocaleString()} unités en stock
+            </div>
           </div>
         </div>
 
-        {/* KPI 2 */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--accent-green)' }}>
-          <div style={{ backgroundColor: '#ECFDF5', padding: '0.75rem', borderRadius: '12px', color: 'var(--accent-green)' }}>
+        {/* KPI 2: Pharmacie */}
+        <div className="card dashboard-kpi-card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', '--card-accent': '#10B981' } as React.CSSProperties}>
+          <div style={{ backgroundColor: '#ECFDF5', padding: '0.85rem', borderRadius: '12px', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <PlusSquare size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Stock Pharmacie</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{totalPharmacieItems} <span style={{ fontSize: '0.8rem', fontWeight: 400 }}>U.</span></div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pharmacie</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.2rem' }}>
+              {uniquePharmacieProducts} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>Produits</span>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              {totalPharmacieUnits.toLocaleString()} unités en stock
+            </div>
           </div>
         </div>
 
-        {/* KPI 3 */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #8B5CF6' }}>
-          <div style={{ backgroundColor: '#F5F3FF', padding: '0.75rem', borderRadius: '12px', color: '#8B5CF6' }}>
-            <DollarSign size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Valeur Estimée</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{stockValue.toLocaleString()} <span style={{ fontSize: '0.8rem', fontWeight: 400 }}>FCFA</span></div>
-          </div>
-        </div>
-
-        {/* KPI 4 */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--danger-red)' }}>
-          <div style={{ backgroundColor: '#FEF2F2', padding: '0.75rem', borderRadius: '12px', color: 'var(--danger-red)' }}>
-            <AlertOctagon size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Ruptures</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: ruptures > 0 ? 'var(--danger-red)' : 'inherit' }}>{ruptures}</div>
-          </div>
-        </div>
-
-        {/* KPI 5 */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--warning-orange)' }}>
-          <div style={{ backgroundColor: '#FFFBEB', padding: '0.75rem', borderRadius: '12px', color: 'var(--warning-orange)' }}>
-            <AlertTriangle size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Stock Faible</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: lowStocks > 0 ? 'var(--warning-orange)' : 'inherit' }}>{lowStocks}</div>
-          </div>
-        </div>
-
-        {/* KPI 6 */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #E11D48' }}>
-          <div style={{ backgroundColor: '#FFF1F2', padding: '0.75rem', borderRadius: '12px', color: '#E11D48' }}>
+        {/* KPI 3: Risques de péremption */}
+        <div className="card dashboard-kpi-card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', '--card-accent': '#F59E0B' } as React.CSSProperties}>
+          <div style={{ backgroundColor: '#FFFBEB', padding: '0.85rem', borderRadius: '12px', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Clock size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Expirations &lt; 90j</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: nearExpiration > 0 ? '#E11D48' : 'inherit' }}>{nearExpiration}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Risque Péremption</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: nearExpiration > 0 ? '#D97706' : 'inherit', marginTop: '0.2rem' }}>
+              {nearExpiration} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>Lots</span>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              Expiration dans les 90 jours
+            </div>
           </div>
         </div>
 
-        {/* KPI 7 */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #06B6D4' }}>
-          <div style={{ backgroundColor: '#ECFEFF', padding: '0.75rem', borderRadius: '12px', color: '#06B6D4' }}>
-            <Users size={24} />
+        {/* KPI 4: Ruptures de stock */}
+        <div className="card dashboard-kpi-card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', '--card-accent': '#EF4444' } as React.CSSProperties}>
+          <div style={{ backgroundColor: '#FEF2F2', padding: '0.85rem', borderRadius: '12px', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AlertOctagon size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Patients servis (J)</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{patientsServedToday}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ruptures de Stock</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: ruptures > 0 ? '#DC2626' : 'inherit', marginTop: '0.2rem' }}>
+              {ruptures} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>Produits</span>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              Stock à zéro globalement
+            </div>
           </div>
         </div>
 
-        {/* KPI 8 */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #F59E0B' }}>
-          <div style={{ backgroundColor: '#FFFBEB', padding: '0.75rem', borderRadius: '12px', color: '#F59E0B' }}>
-            <Inbox size={24} />
+        {/* KPI 5: Valeur du stock disponible */}
+        <div className="card dashboard-kpi-card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', '--card-accent': '#8B5CF6' } as React.CSSProperties}>
+          <div style={{ backgroundColor: '#F5F3FF', padding: '0.85rem', borderRadius: '12px', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <DollarSign size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Transferts en cours</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{pendingTransfers}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Valeur du Stock</div>
+            <div style={{ fontSize: '1.35rem', fontWeight: 700, marginTop: '0.2rem' }}>
+              {stockValue.toLocaleString()} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>FCFA</span>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              Valorisé au prix de vente
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 6: Valeur des produits vendus pour la journée */}
+        <div className="card dashboard-kpi-card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', '--card-accent': '#06B6D4' } as React.CSSProperties}>
+          <div style={{ backgroundColor: '#ECFEFF', padding: '0.85rem', borderRadius: '12px', color: '#06B6D4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <TrendingUp size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ventes du Jour</div>
+            <div style={{ fontSize: '1.35rem', fontWeight: 700, color: salesToday > 0 ? '#0891B2' : 'inherit', marginTop: '0.2rem' }}>
+              {salesToday.toLocaleString()} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>FCFA</span>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              Dispenses de la journée
+            </div>
           </div>
         </div>
       </div>

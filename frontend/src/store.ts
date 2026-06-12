@@ -250,11 +250,37 @@ export const useStore = create<AppState>((set, get) => ({
         referenceDossier: p.reference_dossier || ''
       }));
 
+      // 5. Fetch Dispensations
+      const { data: dispData, error: dispError } = await supabase
+        .from('dispensations')
+        .select('*, patients(nom_complet), dispensation_lignes(*)');
+      
+      const mappedDispensations: Dispensation[] = [];
+      if (!dispError && dispData) {
+        (dispData || []).forEach((d: any) => {
+          mappedDispensations.push({
+            id: d.id,
+            patientId: d.patient_id,
+            patientName: d.patients?.nom_complet || 'Inconnu',
+            pharmacien: 'Pharmacien',
+            date: d.date_dispensation,
+            numeroOrdonnance: d.numero_ordonnance || '',
+            prescripteur: d.prescripteur || '',
+            items: (d.dispensation_lignes || []).map((l: any) => ({
+              medicamentId: l.medicament_id,
+              lot: l.lot,
+              quantiteDelivree: l.quantite_delivree
+            }))
+          });
+        });
+      }
+
       set({
         medicaments: mappedMeds,
         stockCentral: mappedCentral,
         stockPharmacie: mappedPharmacy,
         patients: mappedPatients,
+        dispensations: mappedDispensations,
         isOnline: true,
         syncing: false
       });
