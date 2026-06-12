@@ -147,48 +147,15 @@ interface AppState {
 }
 
 // Initial Mock Catalog
-const initialMedicaments: Medicament[] = [
-  { id: 'm1', code: 'AMX500', nom: 'Amoxicilline', dci: 'Amoxicilline', categorie: 'Antibiotique', forme: 'Gélule', dosage: '500mg', unite: 'Boîte de 30', seuilAlerte: 20, prixVente: 1500 },
-  { id: 'm2', code: 'PAR500', nom: 'Paracétamol', dci: 'Paracétamol', categorie: 'Analgésique', forme: 'Comprimé', dosage: '500mg', unite: 'Boîte de 20', seuilAlerte: 50, prixVente: 500 },
-  { id: 'm3', code: 'IBU400', nom: 'Ibuprofène', dci: 'Ibuprofène', categorie: 'Anti-inflammatoire', forme: 'Comprimé', dosage: '400mg', unite: 'Boîte de 10', seuilAlerte: 15, prixVente: 1200 },
-  { id: 'm4', code: 'ART120', nom: 'Artésunate', dci: 'Artésunate/Amodiaquine', categorie: 'Antipaludéen', forme: 'Comprimé', dosage: '100mg/270mg', unite: 'Boîte de 6', seuilAlerte: 30, prixVente: 2500 },
-  { id: 'm5', code: 'MET500', nom: 'Métronidazole', dci: 'Métronidazole', categorie: 'Anti-infectieux', forme: 'Comprimé', dosage: '500mg', unite: 'Boîte de 20', seuilAlerte: 25, prixVente: 1800 },
-];
+const initialMedicaments: Medicament[] = [];
 
-const initialStockCentral: StockItem[] = [
-  { id: 'sc1', medicamentId: 'm1', lot: 'LOT-AMX2026A', expiration: '2026-10-15', quantite: 120, emplacement: 'Rayon A1' },
-  { id: 'sc2', medicamentId: 'm1', lot: 'LOT-AMX2026B', expiration: '2026-12-01', quantite: 80, emplacement: 'Rayon A1' },
-  { id: 'sc3', medicamentId: 'm2', lot: 'LOT-PAR2026X', expiration: '2026-06-25', quantite: 300, emplacement: 'Rayon B3' },
-  { id: 'sc4', medicamentId: 'm3', lot: 'LOT-IBU2026C', expiration: '2026-08-30', quantite: 50, emplacement: 'Rayon A4' },
-  { id: 'sc5', medicamentId: 'm4', lot: 'LOT-ART2026Z', expiration: '2026-05-30', quantite: 15, emplacement: 'Chambre Froide' },
-  { id: 'sc6', medicamentId: 'm5', lot: 'LOT-MET2026K', expiration: '2026-11-20', quantite: 90, emplacement: 'Rayon B1' }
-];
+const initialStockCentral: StockItem[] = [];
 
-const initialStockPharmacie: StockItem[] = [
-  { id: 'sp1', medicamentId: 'm1', lot: 'LOT-AMX2026A', expiration: '2026-10-15', quantite: 15 },
-  { id: 'sp2', medicamentId: 'm2', lot: 'LOT-PAR2026X', expiration: '2026-06-25', quantite: 60 },
-  { id: 'sp3', medicamentId: 'm3', lot: 'LOT-IBU2026C', expiration: '2026-08-30', quantite: 8 },
-];
+const initialStockPharmacie: StockItem[] = [];
 
-const initialPatients: Patient[] = [
-  { id: 'p1', nomComplet: 'Koffi Mensah', sexe: 'M', age: 34, telephone: '+228 90 12 34 56', referenceDossier: 'DOS-2026-001' },
-  { id: 'p2', nomComplet: 'Amina Diallo', sexe: 'F', age: 28, telephone: '+229 97 00 11 22', referenceDossier: 'DOS-2026-002' },
-];
+const initialPatients: Patient[] = [];
 
-const initialMovements: StockMovement[] = [
-  { id: 'mvt_1', medicamentId: 'm1', date: new Date(Date.now() - 3600000 * 24 * 5).toISOString(), type: 'Entrée Fournisseur', lot: 'LOT-AMX2026A', quantite: 200, stockType: 'Magasin', operateur: 'M. Amadou Sow', details: 'Fournisseur: PharmaGros, Facture: FAC-2026-981' },
-  { id: 'mvt_2', medicamentId: 'm1', date: new Date(Date.now() - 3600000 * 24 * 3).toISOString(), type: 'Transfert', lot: 'LOT-AMX2026A', quantite: -50, stockType: 'Magasin', operateur: 'M. Amadou Sow', details: 'Sortie transfert approuvé pour Pharmacie' },
-  { id: 'mvt_3', medicamentId: 'm1', date: new Date(Date.now() - 3600000 * 24 * 3).toISOString(), type: 'Transfert', lot: 'LOT-AMX2026A', quantite: 50, stockType: 'Pharmacie', operateur: 'Mme. Claire Touré', details: 'Réception transfert magasin' },
-  { id: 'mvt_4', medicamentId: 'm1', date: new Date(Date.now() - 3600000 * 24 * 2).toISOString(), type: 'Dispensation', lot: 'LOT-AMX2026A', quantite: -15, stockType: 'Pharmacie', operateur: 'Mme. Claire Touré', details: 'Patient: Koffi Mensah, Ordonnance: ORD-8716' },
-  { id: 'mvt_5', medicamentId: 'm2', date: new Date(Date.now() - 3600000 * 24 * 4).toISOString(), type: 'Entrée Fournisseur', lot: 'LOT-PAR2026X', quantite: 400, stockType: 'Magasin', operateur: 'M. Amadou Sow', details: 'Fournisseur: PharmaGros, Facture: FAC-2026-981' },
-  { id: 'mvt_6', medicamentId: 'm2', date: new Date(Date.now() - 3600000 * 24 * 2).toISOString(), type: 'Transfert', lot: 'LOT-PAR2026X', quantite: -100, stockType: 'Magasin', operateur: 'M. Amadou Sow', details: 'Sortie transfert approuvé pour Pharmacie' },
-  { id: 'mvt_7', medicamentId: 'm2', date: new Date(Date.now() - 3600000 * 24 * 2).toISOString(), type: 'Transfert', lot: 'LOT-PAR2026X', quantite: 100, stockType: 'Pharmacie', operateur: 'Mme. Claire Touré', details: 'Réception transfert magasin' },
-  { id: 'mvt_8', medicamentId: 'm2', date: new Date(Date.now() - 3600000 * 12).toISOString(), type: 'Dispensation', lot: 'LOT-PAR2026X', quantite: -40, stockType: 'Pharmacie', operateur: 'Mme. Claire Touré', details: 'Patient: Amina Diallo, Ordonnance: ORD-9012' },
-  { id: 'mvt_9', medicamentId: 'm3', date: new Date(Date.now() - 3600000 * 24 * 6).toISOString(), type: 'Entrée Fournisseur', lot: 'LOT-IBU2026C', quantite: 80, stockType: 'Magasin', operateur: 'M. Amadou Sow', details: 'Fournisseur: Medix SA, Facture: FAC-MED-4421' },
-  { id: 'mvt_10', medicamentId: 'm3', date: new Date(Date.now() - 3600000 * 24 * 1).toISOString(), type: 'Transfert', lot: 'LOT-IBU2026C', quantite: -20, stockType: 'Magasin', operateur: 'M. Amadou Sow', details: 'Sortie transfert' },
-  { id: 'mvt_11', medicamentId: 'm3', date: new Date(Date.now() - 3600000 * 24 * 1).toISOString(), type: 'Transfert', lot: 'LOT-IBU2026C', quantite: 20, stockType: 'Pharmacie', operateur: 'Mme. Claire Touré', details: 'Réception transfert' },
-  { id: 'mvt_12', medicamentId: 'm3', date: new Date(Date.now() - 3600000 * 2).toISOString(), type: 'Dispensation', lot: 'LOT-IBU2026C', quantite: -12, stockType: 'Pharmacie', operateur: 'Mme. Claire Touré', details: 'Patient: Amina Diallo' }
-];
+const initialMovements: StockMovement[] = [];
 
 export const useStore = create<AppState>((set, get) => ({
   isOnline: false,
@@ -201,40 +168,6 @@ export const useStore = create<AppState>((set, get) => ({
       // 1. Fetch medications
       let { data: medsData, error: medsError } = await supabase.from('medicaments').select('*');
       if (medsError) throw medsError;
-
-      // Auto-seeding if Supabase is completely empty
-      if (!medsData || medsData.length === 0) {
-        const seedMeds = [
-          { code: 'AMX500', nom: 'Amoxicilline', dci: 'Amoxicilline', categorie: 'Antibiotique', forme: 'Gélule', dosage: '500mg', unite: 'Boîte de 30', seuil_alerte: 20, prix_vente: 1500 },
-          { code: 'PAR500', nom: 'Paracétamol', dci: 'Paracétamol', categorie: 'Analgésique', forme: 'Comprimé', dosage: '500mg', unite: 'Boîte de 20', seuil_alerte: 50, prix_vente: 500 },
-          { code: 'IBU400', nom: 'Ibuprofène', dci: 'Ibuprofène', categorie: 'Anti-inflammatoire', forme: 'Comprimé', dosage: '400mg', unite: 'Boîte de 10', seuil_alerte: 15, prix_vente: 1200 },
-          { code: 'ART120', nom: 'Artésunate', dci: 'Artésunate/Amodiaquine', categorie: 'Antipaludéen', forme: 'Comprimé', dosage: '100mg/270mg', unite: 'Boîte de 6', seuil_alerte: 30, prix_vente: 2500 },
-          { code: 'MET500', nom: 'Métronidazole', dci: 'Métronidazole', categorie: 'Anti-infectieux', forme: 'Comprimé', dosage: '500mg', unite: 'Boîte de 20', seuil_alerte: 25, prix_vente: 1800 },
-        ];
-        const { data: insertedMeds, error: insertError } = await supabase.from('medicaments').insert(seedMeds).select('*');
-        if (insertError) throw insertError;
-        medsData = insertedMeds;
-
-        // Auto-seed mock stocks using valid UUIDs from inserted medicaments
-        if (medsData && medsData.length >= 5) {
-          const seedCentral = [
-            { medicament_id: medsData[0].id, lot: 'LOT-AMX2026A', expiration: '2026-10-15', quantite: 120, emplacement: 'Rayon A1' },
-            { medicament_id: medsData[0].id, lot: 'LOT-AMX2026B', expiration: '2026-12-01', quantite: 80, emplacement: 'Rayon A1' },
-            { medicament_id: medsData[1].id, lot: 'LOT-PAR2026X', expiration: '2026-06-25', quantite: 300, emplacement: 'Rayon B3' },
-            { medicament_id: medsData[2].id, lot: 'LOT-IBU2026C', expiration: '2026-08-30', quantite: 50, emplacement: 'Rayon A4' },
-            { medicament_id: medsData[3].id, lot: 'LOT-ART2026Z', expiration: '2026-05-30', quantite: 15, emplacement: 'Chambre Froide' },
-            { medicament_id: medsData[4].id, lot: 'LOT-MET2026K', expiration: '2026-11-20', quantite: 90, emplacement: 'Rayon B1' }
-          ];
-          await supabase.from('stock_magasin').insert(seedCentral);
-
-          const seedPharmacy = [
-            { medicament_id: medsData[0].id, lot: 'LOT-AMX2026A', expiration: '2026-10-15', quantite: 15 },
-            { medicament_id: medsData[1].id, lot: 'LOT-PAR2026X', expiration: '2026-06-25', quantite: 60 },
-            { medicament_id: medsData[2].id, lot: 'LOT-IBU2026C', expiration: '2026-08-30', quantite: 8 }
-          ];
-          await supabase.from('stock_pharmacie').insert(seedPharmacy);
-        }
-      }
 
       const mappedMeds: Medicament[] = (medsData || []).map((m: any) => ({
           id: m.id,
