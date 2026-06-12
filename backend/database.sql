@@ -93,5 +93,26 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_stock_magasin_updated_at BEFORE UPDATE ON public.stock_magasin FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_stock_pharmacie_updated_at BEFORE UPDATE ON public.stock_pharmacie FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
--- Fonction de déstockage FEFO automatique (Exemple simplifié)
--- CREATE OR REPLACE FUNCTION destock_fefo(p_medicament_id UUID, p_quantite INTEGER) ...
+-- Table des Inventaires Physiques
+CREATE TABLE public.inventaires (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type_stock VARCHAR(50) NOT NULL CHECK (type_stock IN ('Magasin', 'Pharmacie')),
+    date_inventaire DATE NOT NULL,
+    cree_par VARCHAR(255) NOT NULL,
+    statut VARCHAR(50) NOT NULL DEFAULT 'Brouillon' CHECK (statut IN ('Brouillon', 'Validé')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    validated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Lignes d'Inventaire
+CREATE TABLE public.inventaire_lignes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    inventaire_id UUID REFERENCES public.inventaires(id) ON DELETE CASCADE,
+    medicament_id UUID REFERENCES public.medicaments(id) ON DELETE CASCADE,
+    lot VARCHAR(100) NOT NULL,
+    stock_theorique INTEGER NOT NULL,
+    stock_physique INTEGER,
+    ecart INTEGER,
+    commentaire TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

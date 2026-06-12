@@ -13,6 +13,7 @@ import {
   Trash2,
   Edit3
 } from 'lucide-react';
+import { InventaireLigne } from '../store';
 
 export default function MagasinCentral() {
   const { 
@@ -23,10 +24,20 @@ export default function MagasinCentral() {
     destruireStockCentral,
     transfererDepuisMagasin,
     transferts,
-    currentUser
+    currentUser,
+    inventaires,
+    creerSessionInventaire,
+    sauvegarderBrouillonInventaire,
+    validerInventaire
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'inventaire' | 'reception' | 'transferts'>('inventaire');
+  const [activeTab, setActiveTab] = useState<'inventaire' | 'reception' | 'transferts' | 'session_inventaire'>('inventaire');
+  
+  // Physical Inventory States
+  const [selectedInvId, setSelectedInvId] = useState<string | null>(null);
+  const [inventoryLines, setInventoryLines] = useState<InventaireLigne[]>([]);
+  const [invDateInput, setInvDateInput] = useState(new Date().toISOString().split('T')[0]);
+  const [showNewInvModal, setShowNewInvModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedStockCardMedId, setSelectedStockCardMedId] = useState<string | null>(null);
@@ -92,6 +103,70 @@ export default function MagasinCentral() {
     setActiveTab('inventaire');
   };
 
+  // Physical Inventory Helper Functions
+  const handleStartNewInventory = async () => {
+    const tempId = await creerSessionInventaire('Magasin', invDateInput);
+    setSelectedInvId(tempId);
+    
+    // Find newly created session to initialize lines in state
+    const createdSession = useStore.getState().inventaires.find(i => i.id === tempId || i.dateInventaire === invDateInput);
+    if (createdSession) {
+      setInventoryLines(createdSession.lignes);
+    }
+    setShowNewInvModal(false);
+  };
+
+  const handleOpenInventory = (inv: any) => {
+    setSelectedInvId(inv.id);
+    setInventoryLines(inv.lignes || []);
+  };
+
+  const handleLinePhysicalQtyChange = (idx: number, val: number | null) => {
+    setInventoryLines(lines => lines.map((l, i) => {
+      if (i === idx) {
+        const ecart = val !== null ? val - l.stockTheorique : null;
+        return { ...l, stockPhysique: val, ecart };
+      }
+      return l;
+    }));
+  };
+
+  const handleLineCommentChange = (idx: number, val: string) => {
+    setInventoryLines(lines => lines.map((l, i) => {
+      if (i === idx) {
+        return { ...l, commentaire: val };
+      }
+      return l;
+    }));
+  };
+
+  const handleSaveInventoryDraft = async () => {
+    if (!selectedInvId) return;
+    await sauvegarderBrouillonInventaire(selectedInvId, inventoryLines);
+    alert('Brouillon d\'inventaire sauvegardé avec succès !');
+    setSelectedInvId(null);
+  };
+
+  const handleValidateInventory = async () => {
+    if (!selectedInvId) return;
+    
+    // Check if any physical stock values are empty/null
+    const hasUncounted = inventoryLines.some(l => l.stockPhysique === null);
+    if (hasUncounted) {
+      alert("Veuillez renseigner le stock physique pour toutes les lignes avant de valider.");
+      return;
+    }
+
+    const confirmVal = window.confirm(
+      "Êtes-vous sûr de vouloir valider cet inventaire ? Les stocks disponibles actuels seront mis à jour avec les stocks physiques saisis, et des ajustements de stock seront enregistrés pour les écarts."
+    );
+    if (!confirmVal) return;
+
+    await validerInventaire(selectedInvId, inventoryLines);
+    alert('L\'inventaire a été validé avec succès. Les stocks ont été mis à jour.');
+    setSelectedInvId(null);
+  };
+
   // Filter central stock items
   const filteredStock = stockCentral.filter(item => {
     const med = medicaments.find(m => m.id === item.medicamentId);
@@ -114,7 +189,7 @@ export default function MagasinCentral() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-light)', gap: '1rem' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-light)', gap: '1rem', overflowX: 'auto' }}>
         <button 
           onClick={() => setActiveTab('inventaire')}
           style={{
@@ -125,10 +200,30 @@ export default function MagasinCentral() {
             color: activeTab === 'inventaire' ? 'var(--primary-blue)' : 'var(--text-muted)',
             fontWeight: 600,
             cursor: 'pointer',
-            fontSize: '0.95rem'
+            fontSize: '0.95rem',
+            whiteSpace: 'nowrap'
           }}
         >
-          📦 Stock & Inventaire
+          📦 Stock Disponible
+        </button>
+        <button 
+          onClick={() => {
+            setActiveTab('session_inventaire');
+            setSelectedInvId(null);
+          }}
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'session_inventaire' ? '3px solid var(--primary-blue)' : '3px solid transparent',
+            color: activeTab === 'session_inventaire' ? 'var(--primary-blue)' : 'var(--text-muted)',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontSize: '0.95rem',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          📋 Inventaire Physique
         </button>
         {currentUser?.role !== 'Auditeur' && (
           <>
@@ -142,7 +237,8 @@ export default function MagasinCentral() {
                 color: activeTab === 'reception' ? 'var(--primary-blue)' : 'var(--text-muted)',
                 fontWeight: 600,
                 cursor: 'pointer',
-                fontSize: '0.95rem'
+                fontSize: '0.95rem',
+                whiteSpace: 'nowrap'
               }}
             >
               🚚 Réception Fournisseur
@@ -157,7 +253,8 @@ export default function MagasinCentral() {
                 color: activeTab === 'transferts' ? 'var(--primary-blue)' : 'var(--text-muted)',
                 fontWeight: 600,
                 cursor: 'pointer',
-                fontSize: '0.95rem'
+                fontSize: '0.95rem',
+                whiteSpace: 'nowrap'
               }}
             >
               🔄 Transferts émis
@@ -862,6 +959,315 @@ export default function MagasinCentral() {
             <button type="submit" className="btn btn-success">Enregistrer & Valider Entrée</button>
           </div>
         </form>
+      )}
+
+      {/* Physical Inventory Session Content */}
+      {activeTab === 'session_inventaire' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          {selectedInvId === null ? (
+            /* LISTING DES INVENTAIRES */
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Sessions d'Inventaires Physiques</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Consultez les inventaires passés ou lancez une nouvelle session de comptage.</p>
+                </div>
+                {currentUser?.role !== 'Auditeur' && (
+                  <button 
+                    onClick={() => {
+                      setInvDateInput(new Date().toISOString().split('T')[0]);
+                      setShowNewInvModal(true);
+                    }}
+                    className="btn btn-primary" 
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  >
+                    <Plus size={16} /> Nouvel Inventaire Magasin
+                  </button>
+                )}
+              </div>
+
+              {/* Table of Inventories */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-light)' }}>
+                      <th style={{ padding: '0.75rem' }}>Date d'Inventaire</th>
+                      <th style={{ padding: '0.75rem' }}>Créé Par</th>
+                      <th style={{ padding: '0.75rem' }}>Statut</th>
+                      <th style={{ padding: '0.75rem' }}>Nombre de Lots</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inventaires.filter(i => i.typeStock === 'Magasin').length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Aucun inventaire enregistré pour le Magasin Central.
+                        </td>
+                      </tr>
+                    ) : (
+                      inventaires
+                        .filter(i => i.typeStock === 'Magasin')
+                        .map((inv) => (
+                          <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                            <td style={{ padding: '0.75rem', fontWeight: 600 }}>{inv.dateInventaire}</td>
+                            <td style={{ padding: '0.75rem' }}>{inv.creePar}</td>
+                            <td style={{ padding: '0.75rem' }}>
+                              <span style={{
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                backgroundColor: inv.statut === 'Validé' ? '#DCFCE7' : '#FEF9C3',
+                                color: inv.statut === 'Validé' ? '#15803D' : '#854D0E'
+                              }}>
+                                {inv.statut}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.75rem' }}>{inv.lignes.length} lot(s)</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                              {inv.statut === 'Brouillon' && currentUser?.role !== 'Auditeur' ? (
+                                <button 
+                                  onClick={() => handleOpenInventory(inv)}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                >
+                                  <Edit3 size={14} /> Continuer
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleOpenInventory(inv)}
+                                  className="btn"
+                                  style={{ background: '#E2E8F0', padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                >
+                                  <Eye size={14} /> Visualiser
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            /* FORMULAIRE DE COMPTAGE DE L'INVENTAIRE */
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              {/* Active inventory header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
+                <div>
+                  <button 
+                    onClick={() => setSelectedInvId(null)} 
+                    style={{ background: 'transparent', border: 'none', color: 'var(--primary-blue)', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.2rem', marginBottom: '0.5rem' }}
+                  >
+                    ← Retour à la liste
+                  </button>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                    Fiche Inventaire - Date : {inventaires.find(i => i.id === selectedInvId)?.dateInventaire}
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Créé par : {inventaires.find(i => i.id === selectedInvId)?.creePar} | Statut : 
+                    <strong style={{ marginLeft: '0.3rem', color: inventaires.find(i => i.id === selectedInvId)?.statut === 'Validé' ? '#15803D' : '#854D0E' }}>
+                      {inventaires.find(i => i.id === selectedInvId)?.statut}
+                    </strong>
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {inventaires.find(i => i.id === selectedInvId)?.statut === 'Brouillon' && currentUser?.role !== 'Auditeur' && (
+                    <>
+                      <button 
+                        onClick={handleSaveInventoryDraft}
+                        className="btn"
+                        style={{ background: '#E2E8F0' }}
+                      >
+                        Sauvegarder Brouillon
+                      </button>
+                      <button 
+                        onClick={handleValidateInventory}
+                        className="btn btn-success"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                      >
+                        <CheckCircle size={16} /> Valider l'Inventaire
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Items Listing Table */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-light)' }}>
+                      <th style={{ padding: '0.75rem', width: '80px' }}>Code</th>
+                      <th style={{ padding: '0.75rem' }}>Désignation Produit</th>
+                      <th style={{ padding: '0.75rem', width: '120px' }}>Lot</th>
+                      <th style={{ padding: '0.75rem', width: '100px', textAlign: 'center' }}>Stock Théorique</th>
+                      <th style={{ padding: '0.75rem', width: '120px', textAlign: 'center' }}>Stock Physique</th>
+                      <th style={{ padding: '0.75rem', width: '100px', textAlign: 'center' }}>Écart</th>
+                      <th style={{ padding: '0.75rem', width: '220px' }}>Commentaire d'écart</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inventoryLines.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Aucun lot disponible en stock pour cet inventaire.
+                        </td>
+                      </tr>
+                    ) : (
+                      inventoryLines.map((line, idx) => {
+                        const isDraft = inventaires.find(i => i.id === selectedInvId)?.statut === 'Brouillon' && currentUser?.role !== 'Auditeur';
+                        const ecart = line.ecart;
+                        
+                        let ecartColor = '#475569'; // grey if 0 or null
+                        let ecartText = '-';
+                        if (ecart !== null) {
+                          if (ecart > 0) {
+                            ecartColor = 'var(--primary-blue)';
+                            ecartText = `+${ecart}`;
+                          } else if (ecart < 0) {
+                            ecartColor = 'var(--danger-red)';
+                            ecartText = `${ecart}`;
+                          } else {
+                            ecartColor = 'var(--accent-green)';
+                            ecartText = '0 (OK)';
+                          }
+                        }
+
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                            <td style={{ padding: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>{line.code}</td>
+                            <td style={{ padding: '0.75rem', fontWeight: 600 }}>{line.nom}</td>
+                            <td style={{ padding: '0.75rem' }}>
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', background: '#F1F5F9', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>
+                                {line.lot}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold' }}>{line.stockTheorique}</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                              {isDraft ? (
+                                <input 
+                                  type="number"
+                                  min="0"
+                                  value={line.stockPhysique === null ? '' : line.stockPhysique}
+                                  onChange={(e) => handleLinePhysicalQtyChange(idx, e.target.value === '' ? null : Number(e.target.value))}
+                                  placeholder="Saisir..."
+                                  style={{
+                                    width: '85px',
+                                    padding: '0.35rem 0.5rem',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-light)',
+                                    textAlign: 'center',
+                                    fontSize: '0.85rem'
+                                  }}
+                                />
+                              ) : (
+                                <span style={{ fontWeight: 'bold' }}>
+                                  {line.stockPhysique !== null ? line.stockPhysique : 'Non compté'}
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: ecartColor }}>
+                              {ecartText}
+                            </td>
+                            <td style={{ padding: '0.75rem' }}>
+                              {isDraft ? (
+                                <input 
+                                  type="text"
+                                  value={line.commentaire || ''}
+                                  onChange={(e) => handleLineCommentChange(idx, e.target.value)}
+                                  placeholder={ecart !== 0 && ecart !== null ? "Renseigner le motif de l'écart..." : "RAS"}
+                                  style={{
+                                    width: '100%',
+                                    padding: '0.35rem 0.5rem',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-light)',
+                                    fontSize: '0.8rem'
+                                  }}
+                                />
+                              ) : (
+                                <span style={{ fontStyle: line.commentaire ? 'normal' : 'italic', color: line.commentaire ? 'inherit' : 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                  {line.commentaire || 'Aucun commentaire'}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL DE CRÉATION DE NOUVEL INVENTAIRE */}
+      {showNewInvModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div className="card" style={{ width: '400px', display: 'flex', flexDirection: 'column', gap: '1.2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                📋 Créer un Inventaire Physique
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                Sélectionnez la date pour initialiser les stocks théoriques.
+              </p>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>
+                Date de l'inventaire *
+              </label>
+              <input 
+                type="date"
+                value={invDateInput}
+                onChange={(e) => setInvDateInput(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-light)',
+                  fontSize: '0.9rem'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button 
+                onClick={() => setShowNewInvModal(false)}
+                className="btn"
+                style={{ background: '#E2E8F0' }}
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleStartNewInventory}
+                className="btn btn-primary"
+              >
+                Initialiser l'Inventaire
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {selectedStockCardMedId && (

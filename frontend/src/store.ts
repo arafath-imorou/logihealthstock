@@ -95,6 +95,28 @@ export interface Notification {
   lu: boolean;
 }
 
+export interface InventaireLigne {
+  id?: string;
+  medicamentId: string;
+  nom?: string;
+  code?: string;
+  lot: string;
+  stockTheorique: number;
+  stockPhysique: number | null;
+  ecart: number | null;
+  commentaire: string;
+}
+
+export interface Inventaire {
+  id: string;
+  typeStock: 'Magasin' | 'Pharmacie';
+  dateInventaire: string;
+  creePar: string;
+  statut: 'Brouillon' | 'Validé';
+  lignes: InventaireLigne[];
+  createdAt: string;
+}
+
 interface AppState {
   // Supabase Sync States
   isOnline: boolean;
@@ -144,6 +166,13 @@ interface AppState {
 
   // Movements (Fiche de stock)
   movements: StockMovement[];
+
+  // Physical Inventories
+  inventaires: Inventaire[];
+  creerSessionInventaire: (typeStock: 'Magasin' | 'Pharmacie', dateInventaire: string) => Promise<string>;
+  sauvegarderBrouillonInventaire: (id: string, lignes: InventaireLigne[]) => Promise<void>;
+  validerInventaire: (id: string, lignes: InventaireLigne[]) => Promise<void>;
+  chargerInventaires: () => Promise<void>;
 }
 
 // Initial Mock Catalog
@@ -161,6 +190,7 @@ export const useStore = create<AppState>((set, get) => ({
   isOnline: false,
   syncing: false,
   movements: initialMovements,
+  inventaires: [],
 
   fetchFromSupabase: async () => {
     set({ syncing: true });
@@ -228,6 +258,9 @@ export const useStore = create<AppState>((set, get) => ({
         isOnline: true,
         syncing: false
       });
+
+      // Load physical inventories
+      await get().chargerInventaires();
 
       get().addAuditLog('Synchronisation', 'Données synchronisées avec succès depuis Supabase !');
     } catch (err: any) {
@@ -1078,5 +1111,329 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, lu: true }))
     }));
+  },
+
+  creerSessionInventaire: async (typeStock, dateInventaire) => {
+    const id = 'inv_' + Math.random().toString(36).substr(2, 9);
+    
+    // Get stock items
+    const stockItems = typeStock === 'Magasin' ? get().stockCentral : get().stockPharmacie;
+    const lignes: InventaireLigne[] = stockItems.map(item => {
+      const med = get().medicaments.find(m => m.id === item.medicamentId);
+      return {
+        medicamentId: item.medicamentId,
+        nom: med?.nom || 'Inconnu',
+        code: med?.code || 'INC',
+        lot: item.lot,
+        stockTheorique: item.quantite,
+        stockPhysique: null,
+        ecart: null,
+        commentaire: ''
+      };
+    });
+
+    const newInv: Inventaire = {
+      id,
+      typeStock,
+      dateInventaire,
+      creePar: get().currentUser?.nomComplet || 'Utilisateur',
+      statut: 'Brouillon',
+      lignes,
+      createdAt: new Date().toISOString()
+    };
+
+    set(state => ({ inventaires: [newInv, ...state.inventaires] }));
+    get().addAuditLog('Création Inventaire', `Session d'inventaire ${typeStock} créée pour la date ${dateInventaire}`);
+
+    // Sync to Supabase
+    try {
+      const { data, error } = await supabase.from('inventaires').insert([{
+        id: id.includes('inv_') ? undefined : id, 
+        type_stock: typeStock,
+        date_inventaire: dateInventaire,
+        cree_par: get().currentUser?.nomComplet || 'Utilisateur',
+        statut: 'Brouillon'
+      }]).select('*');
+      
+      if (!error && data && data[0]) {
+        const realId = data[0].id;
+        // Update local state with real UUID
+        set(state => ({
+          inventaires: state.inventaires.map(inv => inv.id === id ? { ...inv, id: realId } : inv)
+        }));
+        
+        // Insert lines
+        const linesToInsert = lignes.map(l => ({
+          inventaire_id: realId,
+          medicament_id: l.medicamentId,
+          lot: l.lot,
+          stock_theorique: l.stockTheorique,
+          stock_physique: null,
+          ecart: null,
+          commentaire: ''
+        }));
+        await supabase.from('inventaire_lignes').insert(linesToInsert);
+      }
+    } catch (e) {
+      console.warn('Mode hors-ligne - Sauvegarde création inventaire');
+    }
+    
+    return id; 
+  },
+
+  sauvegarderBrouillonInventaire: async (id, updatedLignes) => {
+    set(state => ({
+      inventaires: state.inventaires.map(inv => {
+        if (inv.id === id) {
+          return {
+            ...inv,
+            lignes: updatedLignes
+          };
+        }
+        return inv;
+      })
+    }));
+
+    get().addAuditLog('Sauvegarde Inventaire', `Brouillon de l'inventaire ${id} sauvegardé.`);
+
+    // Sync to Supabase
+    try {
+      for (const line of updatedLignes) {
+        await supabase.from('inventaire_lignes')
+          .update({
+            stock_physique: line.stockPhysique,
+            ecart: line.ecart,
+            commentaire: line.commentaire
+          })
+          .eq('inventaire_id', id)
+          .eq('medicament_id', line.medicamentId)
+          .eq('lot', line.lot);
+      }
+    } catch (e) {
+      console.warn('Mode hors-ligne - Sauvegarde brouillon');
+    }
+  },
+
+  validerInventaire: async (id, finalLignes) => {
+    const inv = get().inventaires.find(i => i.id === id);
+    if (!inv) return;
+
+    // 1. Mark inventory as validated
+    set(state => ({
+      inventaires: state.inventaires.map(i => {
+        if (i.id === id) {
+          return {
+            ...i,
+            statut: 'Validé',
+            lignes: finalLignes
+          };
+        }
+        return i;
+      })
+    }));
+
+    // 2. Adjust actual stock levels and record movements
+    const newMovements: StockMovement[] = [];
+    const typeStock = inv.typeStock;
+
+    if (typeStock === 'Magasin') {
+      const updatedStockCentral = [...get().stockCentral];
+      for (const line of finalLignes) {
+        if (line.stockPhysique === null) continue;
+        
+        const stockItemIndex = updatedStockCentral.findIndex(s => s.medicamentId === line.medicamentId && s.lot === line.lot);
+        const diff = line.stockPhysique - line.stockTheorique;
+
+        if (diff !== 0) {
+          newMovements.push({
+            id: 'mvt_' + Math.random().toString(36).substr(2, 9),
+            medicamentId: line.medicamentId,
+            date: new Date().toISOString(),
+            type: 'Ajustement',
+            lot: line.lot,
+            quantite: diff,
+            stockType: 'Magasin',
+            operateur: get().currentUser?.nomComplet || 'Système',
+            details: `Ajustement par inventaire physique du ${inv.dateInventaire}. Commentaire: ${line.commentaire || 'Aucun'}`
+          });
+        }
+
+        if (stockItemIndex !== -1) {
+          updatedStockCentral[stockItemIndex].quantite = line.stockPhysique;
+        } else if (line.stockPhysique > 0) {
+          updatedStockCentral.push({
+            id: 'sc_' + Math.random().toString(36).substr(2, 9),
+            medicamentId: line.medicamentId,
+            lot: line.lot,
+            expiration: new Date(Date.now() + 3600000 * 24 * 365).toISOString().split('T')[0],
+            quantite: line.stockPhysique,
+            emplacement: 'Rayon Réception'
+          });
+        }
+      }
+
+      set({
+        stockCentral: updatedStockCentral.filter(s => s.quantite > 0),
+        movements: [...newMovements, ...get().movements]
+      });
+
+      // Sync central stocks to Supabase
+      for (const line of finalLignes) {
+        if (line.stockPhysique === null) continue;
+        const diff = line.stockPhysique - line.stockTheorique;
+        if (diff !== 0) {
+          try {
+            if (line.stockPhysique === 0) {
+              await supabase.from('stock_magasin').delete().eq('medicament_id', line.medicamentId).eq('lot', line.lot);
+            } else {
+              const { data, error } = await supabase.from('stock_magasin')
+                .update({ quantite: line.stockPhysique })
+                .eq('medicament_id', line.medicamentId)
+                .eq('lot', line.lot)
+                .select('*');
+              
+              if (!error && (!data || data.length === 0)) {
+                await supabase.from('stock_magasin').insert([{
+                  medicament_id: line.medicamentId,
+                  lot: line.lot,
+                  expiration: new Date(Date.now() + 3600000 * 24 * 365).toISOString().split('T')[0],
+                  quantite: line.stockPhysique
+                }]);
+              }
+            }
+          } catch (e) {
+            console.warn('Mode hors-ligne - Ajustement Magasin');
+          }
+        }
+      }
+      
+    } else {
+      // Pharmacie
+      const updatedStockPharmacie = [...get().stockPharmacie];
+      for (const line of finalLignes) {
+        if (line.stockPhysique === null) continue;
+        
+        const stockItemIndex = updatedStockPharmacie.findIndex(s => s.medicamentId === line.medicamentId && s.lot === line.lot);
+        const diff = line.stockPhysique - line.stockTheorique;
+
+        if (diff !== 0) {
+          newMovements.push({
+            id: 'mvt_' + Math.random().toString(36).substr(2, 9),
+            medicamentId: line.medicamentId,
+            date: new Date().toISOString(),
+            type: 'Ajustement',
+            lot: line.lot,
+            quantite: diff,
+            stockType: 'Pharmacie',
+            operateur: get().currentUser?.nomComplet || 'Système',
+            details: `Ajustement par inventaire physique du ${inv.dateInventaire}. Commentaire: ${line.commentaire || 'Aucun'}`
+          });
+        }
+
+        if (stockItemIndex !== -1) {
+          updatedStockPharmacie[stockItemIndex].quantite = line.stockPhysique;
+        } else if (line.stockPhysique > 0) {
+          updatedStockPharmacie.push({
+            id: 'sp_' + Math.random().toString(36).substr(2, 9),
+            medicamentId: line.medicamentId,
+            lot: line.lot,
+            expiration: new Date(Date.now() + 3600000 * 24 * 365).toISOString().split('T')[0],
+            quantite: line.stockPhysique
+          });
+        }
+      }
+
+      set({
+        stockPharmacie: updatedStockPharmacie.filter(s => s.quantite > 0),
+        movements: [...newMovements, ...get().movements]
+      });
+
+      // Sync pharmacy stocks to Supabase
+      for (const line of finalLignes) {
+        if (line.stockPhysique === null) continue;
+        const diff = line.stockPhysique - line.stockTheorique;
+        if (diff !== 0) {
+          try {
+            if (line.stockPhysique === 0) {
+              await supabase.from('stock_pharmacie').delete().eq('medicament_id', line.medicamentId).eq('lot', line.lot);
+            } else {
+              const { data, error } = await supabase.from('stock_pharmacie')
+                .update({ quantite: line.stockPhysique })
+                .eq('medicament_id', line.medicamentId)
+                .eq('lot', line.lot)
+                .select('*');
+              
+              if (!error && (!data || data.length === 0)) {
+                await supabase.from('stock_pharmacie').insert([{
+                  medicament_id: line.medicamentId,
+                  lot: line.lot,
+                  expiration: new Date(Date.now() + 3600000 * 24 * 365).toISOString().split('T')[0],
+                  quantite: line.stockPhysique
+                }]);
+              }
+            }
+          } catch (e) {
+            console.warn('Mode hors-ligne - Ajustement Pharmacie');
+          }
+        }
+      }
+    }
+
+    get().addAuditLog('Validation Inventaire', `Inventaire ${typeStock} du ${inv.dateInventaire} validé et stocks mis à jour.`);
+
+    // Sync inventory status to Supabase
+    try {
+      await supabase.from('inventaires').update({ statut: 'Validé', validated_at: new Date().toISOString() }).eq('id', id);
+      
+      for (const line of finalLignes) {
+        await supabase.from('inventaire_lignes')
+          .update({
+            stock_physique: line.stockPhysique,
+            ecart: line.ecart,
+            commentaire: line.commentaire
+          })
+          .eq('inventaire_id', id)
+          .eq('medicament_id', line.medicamentId)
+          .eq('lot', line.lot);
+      }
+    } catch (e) {
+      console.warn('Mode hors-ligne - Validation inventaire');
+    }
+  },
+
+  chargerInventaires: async () => {
+    try {
+      const { data: invs, error: invsErr } = await supabase.from('inventaires').select('*').order('created_at', { ascending: false });
+      if (invsErr) throw invsErr;
+      
+      const loadedInvs: Inventaire[] = [];
+      for (const inv of (invs || [])) {
+        const { data: lines, error: linesErr } = await supabase.from('inventaire_lignes').select('*, medicaments(nom, code)').eq('inventaire_id', inv.id);
+        if (linesErr) throw linesErr;
+        
+        loadedInvs.push({
+          id: inv.id,
+          typeStock: inv.type_stock,
+          dateInventaire: inv.date_inventaire,
+          creePar: inv.cree_par,
+          statut: inv.statut,
+          createdAt: inv.created_at,
+          lignes: (lines || []).map((l: any) => ({
+            id: l.id,
+            medicamentId: l.medicament_id,
+            nom: l.medicaments?.nom || '',
+            code: l.medicaments?.code || '',
+            lot: l.lot,
+            stockTheorique: l.stock_theorique,
+            stockPhysique: l.stock_physique,
+            ecart: l.ecart,
+            commentaire: l.commentaire || ''
+          }))
+        });
+      }
+      set({ inventaires: loadedInvs });
+    } catch (e) {
+      console.warn('Mode hors-ligne - Chargement des inventaires');
+    }
   }
 }));
