@@ -11,15 +11,18 @@ import {
   Settings, 
   History, 
   LogOut,
-  UserCheck
+  UserCheck,
+  X
 } from 'lucide-react';
 
 interface SidebarProps {
   currentView: string;
   setView: (view: string) => void;
+  sidebarOpen?: boolean;
+  setSidebarOpen?: (open: boolean) => void;
 }
 
-export default function Sidebar({ currentView, setView }: SidebarProps) {
+export default function Sidebar({ currentView, setView, sidebarOpen, setSidebarOpen }: SidebarProps) {
   const { currentUser, logout, login, isOnline } = useStore();
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -43,7 +46,7 @@ export default function Sidebar({ currentView, setView }: SidebarProps) {
   const allowedNavItems = navItems.filter(item => item.roles.includes(currentUser.role));
 
   return (
-    <aside className="sidebar" style={{
+    <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} style={{
       width: '260px',
       backgroundColor: '#1E293B',
       color: '#F8FAFC',
@@ -62,39 +65,62 @@ export default function Sidebar({ currentView, setView }: SidebarProps) {
         borderBottom: '1px solid #334155',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'space-between',
         gap: '0.75rem'
       }}>
-        <div style={{
-          backgroundColor: 'var(--accent-green)',
-          width: '36px',
-          height: '36px',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 'bold',
-          color: 'white',
-          fontSize: '1.25rem'
-        }}>
-          LH
-        </div>
-        <div>
-          <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0, color: 'white' }}>LogiHealth</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Gestion des Stocks</span>
-            <span 
-              style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                backgroundColor: isOnline ? 'var(--accent-green)' : 'var(--danger-red)',
-                boxShadow: isOnline ? '0 0 8px var(--accent-green)' : '0 0 8px var(--danger-red)',
-                display: 'inline-block'
-              }} 
-              title={isOnline ? 'Base de données Supabase Connectée (En ligne)' : 'Mode Local Autonome (Hors-ligne)'}
-            />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{
+            backgroundColor: 'var(--accent-green)',
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            color: 'white',
+            fontSize: '1.25rem'
+          }}>
+            LH
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0, color: 'white' }}>LogiHealth</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Gestion des Stocks</span>
+              <span 
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  backgroundColor: isOnline ? 'var(--accent-green)' : 'var(--danger-red)',
+                  boxShadow: isOnline ? '0 0 8px var(--accent-green)' : '0 0 8px var(--danger-red)',
+                  display: 'inline-block'
+                }} 
+                title={isOnline ? 'Base de données Supabase Connectée (En ligne)' : 'Mode Local Autonome (Hors-ligne)'}
+              />
+            </div>
           </div>
         </div>
+
+        {/* Close button for mobile */}
+        {setSidebarOpen && (
+          <button 
+            className="mobile-close-btn"
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94A3B8',
+              cursor: 'pointer',
+              display: 'none',
+              alignItems: 'center',
+              padding: '0.25rem'
+            }}
+            title="Fermer le menu"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* Role Switcher for Testing (Super Useful Bonus) */}

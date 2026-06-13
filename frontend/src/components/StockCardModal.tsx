@@ -158,7 +158,7 @@ export default function StockCardModal({ medicamentId, onClose }: StockCardModal
         </div>
 
         {/* Stock Status Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+        <div className="grid-3">
           
           <div style={{ 
             backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', 

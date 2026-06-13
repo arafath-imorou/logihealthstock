@@ -100,7 +100,7 @@ export default function Rapports() {
           </div>
 
           {/* Table */}
-          <div className="card" style={{ padding: 0 }}>
+          <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
               <thead>
                 <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-light)' }}>

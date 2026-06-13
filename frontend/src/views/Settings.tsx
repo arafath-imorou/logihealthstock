@@ -195,7 +195,7 @@ export default function Settings() {
               <SettingsIcon size={18} /> Configuration Générale
             </h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid-1-1">
               <div>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Devise Principale</label>
                 <select 
@@ -265,7 +265,7 @@ export default function Settings() {
 
       {/* Tarification Medicament Tab */}
       {activeTab === 'tarification' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '2rem', alignItems: 'start' }}>
+        <div className="grid-2-1" style={{ alignItems: 'start' }}>
           
           {/* Catalog & Pricing List */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -397,7 +397,7 @@ export default function Settings() {
             </h3>
 
             <form onSubmit={handleSubmitMedForm} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid-1-1">
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Code (ex: AMX500) *</label>
                   <input 
@@ -434,7 +434,7 @@ export default function Settings() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid-1-1">
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Catégorie</label>
                   <select 
@@ -468,7 +468,7 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid-1-1">
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Dosage (ex: 500mg)</label>
                   <input 
@@ -491,7 +491,7 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid-1-1">
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem', color: 'var(--primary-blue)' }}>Prix de Vente (FCFA) *</label>
                   <input 

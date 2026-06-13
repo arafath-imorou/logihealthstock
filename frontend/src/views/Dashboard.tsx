@@ -201,11 +201,7 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content Area */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '2fr 1fr',
-        gap: '1.5rem'
-      }}>
+      <div className="grid-2-1">
         {/* Left Column : Charts & Critical Alerts */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           

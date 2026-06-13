@@ -426,7 +426,7 @@ export default function Pharmacie() {
 
       {/* Tab Contents */}
       {activeTab === 'dashboard' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+        <div className="grid-2-1">
           
           {/* Main Area */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -606,7 +606,7 @@ export default function Pharmacie() {
           {dispStep === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid-1-1">
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Nom Complet du Patient *</label>
                   <input 
@@ -618,7 +618,7 @@ export default function Pharmacie() {
                     style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-light)' }}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div className="grid-1-1">
                   <div>
                     <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Sexe *</label>
                     <select 
@@ -643,7 +643,7 @@ export default function Pharmacie() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid-1-1">
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Téléphone</label>
                   <input 
@@ -666,7 +666,7 @@ export default function Pharmacie() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid-1-1">
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Numéro Ordonnance (Optionnel)</label>
                   <input 
@@ -826,7 +826,7 @@ export default function Pharmacie() {
                 <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
                   👤 Informations Patient
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
+                <div className="grid-1-1" style={{ fontSize: '0.85rem' }}>
                   <div>
                     <span style={{ color: 'var(--text-muted)', display: 'block' }}>Nom Complet :</span>
                     <strong>{patientNom}</strong>

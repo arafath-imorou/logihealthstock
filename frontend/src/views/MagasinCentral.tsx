@@ -572,7 +572,7 @@ export default function MagasinCentral() {
                 </h3>
                 
                 {/* Header Information */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+                <div className="grid-1-2">
                   <div>
                     <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Date du Transfert *</label>
                     <input 
