@@ -35,6 +35,69 @@ export default function Pharmacie() {
     validerInventaire
   } = useStore();
 
+  // Consommation Moyenne Mensuelle (CMM)
+  const calculateCMM = (medicamentId: string) => {
+    const today = new Date();
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(today.getMonth() - 3);
+
+    // Sorties des 3 derniers mois
+    const relevantDispensations = dispensations.filter(d => {
+      const dDate = new Date(d.date);
+      return dDate >= threeMonthsAgo && dDate <= today;
+    });
+
+    let totalSorties = 0;
+    relevantDispensations.forEach(d => {
+      d.items.forEach(it => {
+        if (it.medicamentId === medicamentId) {
+          totalSorties += it.quantiteDelivree;
+        }
+      });
+    });
+
+    // Stock actuel en pharmacie
+    const currentStock = stockPharmacie
+      .filter(s => s.medicamentId === medicamentId)
+      .reduce((acc, s) => acc + s.quantite, 0);
+
+    let ruptureDays = 0;
+    const totalDays = 91.5; // moyenne de jours sur 3 mois (30.5 * 3)
+
+    // Estimation des jours de rupture si le stock actuel est à 0
+    if (currentStock === 0) {
+      if (totalSorties === 0) {
+        ruptureDays = totalDays; // Rupture totale sur la période
+      } else {
+        // Date de la dernière dispensation
+        let lastDispDate = threeMonthsAgo;
+        relevantDispensations.forEach(d => {
+          const hasItem = d.items.some(it => it.medicamentId === medicamentId);
+          if (hasItem) {
+            const dDate = new Date(d.date);
+            if (dDate > lastDispDate) {
+              lastDispDate = dDate;
+            }
+          }
+        });
+        const diffTime = Math.abs(today.getTime() - lastDispDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        ruptureDays = Math.min(diffDays, totalDays);
+      }
+    }
+
+    if (ruptureDays >= totalDays) {
+      return 0;
+    }
+
+    // Application des formules (avec ou sans rupture)
+    const cmm = ruptureDays > 0 
+      ? (totalSorties * 30.5) / (totalDays - ruptureDays) 
+      : (totalSorties / 3);
+
+    return Math.round(cmm * 10) / 10; // Arrondi à 1 décimale
+  };
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stock' | 'dispensation' | 'historique' | 'receptions' | 'session_inventaire'>('dashboard');
   
   // Physical Inventory States
@@ -469,13 +532,14 @@ export default function Pharmacie() {
                   <th style={{ padding: '1rem' }}>N° Lot</th>
                   <th style={{ padding: '1rem' }}>Date Expiration</th>
                   <th style={{ padding: '1rem' }}>Stock Disponible</th>
+                  <th style={{ padding: '1rem' }}>CMM</th>
                   <th style={{ padding: '1rem', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStock.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       Aucun produit en stock dans la Pharmacie.
                     </td>
                   </tr>
@@ -483,6 +547,7 @@ export default function Pharmacie() {
                   filteredStock.map((item) => {
                     const med = medicaments.find(m => m.id === item.medicamentId);
                     if (!med) return null;
+                    const cmmValue = calculateCMM(med.id);
                     return (
                       <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                         <td style={{ padding: '1rem', fontWeight: 600 }}>{med.code}</td>
@@ -490,6 +555,7 @@ export default function Pharmacie() {
                         <td style={{ padding: '1rem', fontFamily: 'monospace' }}>{item.lot}</td>
                         <td style={{ padding: '1rem' }}>{item.expiration}</td>
                         <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite} U.</td>
+                        <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary-blue)' }}>{cmmValue} U./mois</td>
                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                           <button 
                             type="button"
