@@ -349,14 +349,13 @@ export default function MagasinCentral() {
                   <th style={{ padding: '1rem' }}>N° Lot</th>
                   <th style={{ padding: '1rem' }}>Expiration</th>
                   <th style={{ padding: '1rem' }}>Stock Disponible</th>
-                  <th style={{ padding: '1rem' }}>Emplacement</th>
                   <th style={{ padding: '1rem', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStock.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       Aucun lot de médicament trouvé dans le Magasin Central.
                     </td>
                   </tr>
@@ -399,8 +398,7 @@ export default function MagasinCentral() {
                           </span>
                         </td>
                         <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite}{formatUnit(med.unite)}</td>
-                        <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{item.emplacement || 'Non défini'}</td>
-                          <td style={{ padding: '1rem' }}>
+                        <td style={{ padding: '1rem' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                               <button 
                                 onClick={() => setSelectedStockCardMedId(med.id)}
