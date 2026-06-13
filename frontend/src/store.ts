@@ -650,6 +650,7 @@ export const useStore = create<AppState>((set, get) => ({
         telephone: patientInfo.telephone,
         reference_dossier: patientInfo.referenceDossier
       }]).select().then(({ data, error }) => {
+        if (error) console.error('Erreur de sauvegarde du patient:', error);
         if (!error && data && data[0]) {
           const res = data as any[];
           const realPatientId = res[0].id;
@@ -665,6 +666,7 @@ export const useStore = create<AppState>((set, get) => ({
               numero_ordonnance: patientInfo.referenceDossier || null,
               prescripteur: 'Médecin Externe'
             }]).select('id').then(({ data: dispData, error: dispError }) => {
+              if (dispError) console.error('Erreur de sauvegarde de la dispensation:', dispError);
               if (!dispError && dispData && dispData[0]) {
                 const dispRes = dispData as any[];
                 const lines = transactionItems.map(tItem => ({
@@ -675,7 +677,9 @@ export const useStore = create<AppState>((set, get) => ({
                 })).filter(x => x.medicament_id !== null);
 
                 if (lines.length > 0) {
-                  supabase.from('dispensation_lignes').insert(lines);
+                  supabase.from('dispensation_lignes').insert(lines).then(({ error: linesErr }) => {
+                    if (linesErr) console.error('Erreur de sauvegarde des lignes de dispensation:', linesErr);
+                  });
                 }
               }
             });
@@ -694,6 +698,7 @@ export const useStore = create<AppState>((set, get) => ({
             numero_ordonnance: patientInfo.referenceDossier || null,
             prescripteur: 'Médecin Externe'
           }]).select('id').then(({ data, error }) => {
+            if (error) console.error('Erreur de sauvegarde de la dispensation (patient existant):', error);
             if (!error && data && data[0]) {
               const res = data as any[];
               const lines = transactionItems.map(tItem => ({
@@ -704,7 +709,9 @@ export const useStore = create<AppState>((set, get) => ({
               })).filter(x => x.medicament_id !== null);
 
               if (lines.length > 0) {
-                supabase.from('dispensation_lignes').insert(lines);
+                supabase.from('dispensation_lignes').insert(lines).then(({ error: linesErr }) => {
+                  if (linesErr) console.error('Erreur de sauvegarde des lignes de dispensation (patient existant):', linesErr);
+                });
               }
             }
           });
