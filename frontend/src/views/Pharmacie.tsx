@@ -149,8 +149,8 @@ export default function Pharmacie() {
 
   const submitDispensation = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!patientNom || !patientAge) {
-      alert('Veuillez remplir les informations obligatoires du patient (Nom et Âge).');
+    if (!patientNom) {
+      alert('Veuillez remplir les informations obligatoires du patient (Nom).');
       return;
     }
 
@@ -631,12 +631,11 @@ export default function Pharmacie() {
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Âge *</label>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Âge</label>
                     <input 
                       type="number" 
                       value={patientAge || ''}
-                      onChange={(e) => setPatientAge(Number(e.target.value))}
-                      required
+                      onChange={(e) => setPatientAge(e.target.value ? Number(e.target.value) : 0)}
                       placeholder="Ex: 34"
                       style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-light)' }}
                     />
@@ -701,7 +700,7 @@ export default function Pharmacie() {
           {dispStep === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ backgroundColor: '#F8FAFC', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem' }}>
-                👤 <strong>Patient :</strong> {patientNom} ({patientAge} ans, {patientSexe === 'F' ? 'Femme' : 'Homme'})
+                👤 <strong>Patient :</strong> {patientNom} ({patientAge > 0 ? `${patientAge} ans, ` : ''}{patientSexe === 'F' ? 'Femme' : 'Homme'})
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -834,7 +833,7 @@ export default function Pharmacie() {
                   </div>
                   <div>
                     <span style={{ color: 'var(--text-muted)', display: 'block' }}>Âge & Sexe :</span>
-                    <strong>{patientAge} ans • {patientSexe === 'F' ? 'Femme' : 'Homme'}</strong>
+                    <strong>{patientAge > 0 ? `${patientAge} ans • ` : ''}{patientSexe === 'F' ? 'Femme' : 'Homme'}</strong>
                   </div>
                   <div>
                     <span style={{ color: 'var(--text-muted)', display: 'block' }}>Téléphone :</span>
