@@ -21,6 +21,7 @@ export default function MagasinCentral() {
     medicaments, 
     receptionnerFournisseur, 
     ajusterStockCentral, 
+    modifierLotExpirationCentral,
     destruireStockCentral,
     transfererDepuisMagasin,
     transferts,
@@ -46,6 +47,8 @@ export default function MagasinCentral() {
   const [showAdjustModal, setShowAdjustModal] = useState<string | null>(null);
   const [newQty, setNewQty] = useState(0);
   const [adjustReason, setAdjustReason] = useState('');
+  const [editLot, setEditLot] = useState('');
+  const [editExpiration, setEditExpiration] = useState('');
 
   const [showDestructionModal, setShowDestructionModal] = useState<string | null>(null);
   const [destructQty, setDestructQty] = useState(0);
@@ -400,10 +403,15 @@ export default function MagasinCentral() {
                               {currentUser?.role !== 'Auditeur' && (
                                 <>
                                   <button 
-                                    onClick={() => { setShowAdjustModal(item.id); setNewQty(item.quantite); }}
+                                    onClick={() => { 
+                                      setShowAdjustModal(item.id); 
+                                      setNewQty(item.quantite); 
+                                      setEditLot(item.lot);
+                                      setEditExpiration(item.expiration);
+                                    }}
                                     className="btn"
                                     style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem', border: '1px solid var(--border-light)', background: '#F8FAFC' }}
-                                    title="Ajuster l'inventaire physique"
+                                    title="Modifier le lot et la date de péremption"
                                   >
                                     <Edit3 size={14} style={{ color: 'var(--primary-blue)' }} />
                                   </button>
@@ -427,44 +435,84 @@ export default function MagasinCentral() {
             </table>
           </div>
 
-          {/* Adjust Stock Modal */}
-          {showAdjustModal && (
-            <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-            }}>
-              <div className="card" style={{ width: '400px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h3 style={{ fontWeight: 700 }}>Ajustement Physique de Stock</h3>
-                <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Nouvelle Quantité Physique :</label>
-                  <input 
-                    type="number" 
-                    value={newQty}
-                    onChange={(e) => setNewQty(Number(e.target.value))}
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-light)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Motif de l'ajustement :</label>
-                  <textarea 
-                    value={adjustReason}
-                    onChange={(e) => setAdjustReason(e.target.value)}
-                    placeholder="Ex: Écart d'inventaire, erreur de comptage..."
-                    rows={3}
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-light)', fontFamily: 'inherit' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                  <button className="btn" style={{ background: '#E2E8F0' }} onClick={() => setShowAdjustModal(null)}>Annuler</button>
-                  <button className="btn btn-primary" onClick={() => {
-                    ajusterStockCentral(showAdjustModal, newQty, adjustReason);
-                    setShowAdjustModal(null);
-                    setAdjustReason('');
-                  }}>Valider</button>
+          {/* Edit Lot & Expiration Modal */}
+          {showAdjustModal && (() => {
+            const item = stockCentral.find(s => s.id === showAdjustModal);
+            const med = item ? medicaments.find(m => m.id === item.medicamentId) : null;
+            return (
+              <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+              }}>
+                <div className="card" style={{ width: '420px', display: 'flex', flexDirection: 'column', gap: '1.2rem', padding: '1.5rem', borderRadius: '12px' }}>
+                  <h3 style={{ fontWeight: 700, margin: 0, fontSize: '1.2rem' }}>Modifier Lot & Péremption</h3>
+                  {med && (
+                    <div style={{ 
+                      padding: '0.75rem', 
+                      background: 'var(--bg-light)', 
+                      borderRadius: '8px', 
+                      borderLeft: '4px solid var(--primary-blue)',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      color: 'var(--text-dark)'
+                    }}>
+                      {med.nom} {med.dosage}
+                    </div>
+                  )}
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>
+                      Numéro de Lot :
+                    </label>
+                    <input 
+                      type="text" 
+                      value={editLot}
+                      onChange={(e) => setEditLot(e.target.value)}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>
+                      Date de péremption :
+                    </label>
+                    <input 
+                      type="date" 
+                      value={editExpiration}
+                      onChange={(e) => setEditExpiration(e.target.value)}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>
+                      Quantité disponible (Non modifiable) :
+                    </label>
+                    <input 
+                      type="text" 
+                      value={item ? `${item.quantite} ${med?.unite || ''}` : ''}
+                      disabled
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.6rem', 
+                        borderRadius: '6px', 
+                        border: '1px solid var(--border-light)', 
+                        backgroundColor: '#F1F5F9', 
+                        color: '#64748B', 
+                        cursor: 'not-allowed',
+                        fontSize: '0.9rem',
+                        fontWeight: 600
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                    <button className="btn" style={{ background: '#E2E8F0' }} onClick={() => setShowAdjustModal(null)}>Annuler</button>
+                    <button className="btn btn-primary" onClick={() => {
+                      modifierLotExpirationCentral(showAdjustModal, editLot, editExpiration);
+                      setShowAdjustModal(null);
+                    }}>Valider</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Destruction Modal */}
           {showDestructionModal && (

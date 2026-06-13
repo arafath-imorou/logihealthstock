@@ -138,6 +138,7 @@ interface AppState {
   stockCentral: StockItem[];
   receptionnerFournisseur: (fournisseur: string, referenceFacture: string, bonLivraison: string, items: { medicamentId: string; lot: string; expiration: string; quantite: number; prixUnitaire: number }[]) => void;
   ajusterStockCentral: (id: string, nouvelleQuantite: number, motif: string) => void;
+  modifierLotExpirationCentral: (id: string, nouveauLot: string, nouvelleExpiration: string) => Promise<void>;
   destruireStockCentral: (id: string, quantite: number, motif: string) => void;
 
   // Pharmacy Stock
@@ -493,6 +494,36 @@ export const useStore = create<AppState>((set, get) => ({
       }
     } catch (e) {
       console.warn('Mode hors-ligne');
+    }
+  },
+
+  modifierLotExpirationCentral: async (id, nouveauLot, nouvelleExpiration) => {
+    const item = get().stockCentral.find((s) => s.id === id);
+    const med = item ? get().medicaments.find((m) => m.id === item.medicamentId) : null;
+
+    if (item) {
+      set((state) => ({
+        stockCentral: state.stockCentral.map((s) => (s.id === id ? { ...s, lot: nouveauLot, expiration: nouvelleExpiration } : s))
+      }));
+
+      get().addAuditLog(
+        'Modification Lot/Péremption Magasin Central',
+        `Modification de ${med?.nom || 'Produit'} : Lot ${item.lot} -> ${nouveauLot}, Péremption ${item.expiration} -> ${nouvelleExpiration}`
+      );
+
+      try {
+        if (!id.includes('sc')) {
+          const { error } = await supabase
+            .from('stock_magasin')
+            .update({ lot: nouveauLot, expiration: nouvelleExpiration })
+            .eq('id', id);
+          if (error) {
+            console.error('Erreur Supabase modifierLotExpirationCentral:', error);
+          }
+        }
+      } catch (e) {
+        console.warn('Mode hors-ligne ou erreur de mise à jour supabase', e);
+      }
     }
   },
 
