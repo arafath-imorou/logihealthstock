@@ -16,13 +16,7 @@ import {
 import { InventaireLigne } from '../store';
 
 const formatUnit = (unit?: string) => {
-  if (!unit) return '';
-  const firstWord = unit.trim().split(' ')[0];
-  const upper = firstWord.toUpperCase();
-  if (upper === 'U' || upper === 'U.' || upper === 'UNITÉ' || upper === 'UNITÉS' || upper === 'UNIT' || upper === 'UNITS') {
-    return '';
-  }
-  return ' ' + firstWord;
+  return '';
 };
 
 export default function MagasinCentral() {

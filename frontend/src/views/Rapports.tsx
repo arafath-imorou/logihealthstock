@@ -106,7 +106,7 @@ export default function Rapports() {
                 <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-light)' }}>
                   <th style={{ padding: '1rem' }}>Code</th>
                   <th style={{ padding: '1rem' }}>Médicament</th>
-                  <th style={{ padding: '1rem' }}>Emplacement / Dépôt</th>
+                  <th style={{ padding: '1rem' }}>Dépôt</th>
                   <th style={{ padding: '1rem' }}>Lot</th>
                   <th style={{ padding: '1rem' }}>Expiration</th>
                   <th style={{ padding: '1rem' }}>Quantité</th>

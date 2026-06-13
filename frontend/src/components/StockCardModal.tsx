@@ -149,7 +149,7 @@ export default function StockCardModal({ medicamentId, onClose }: StockCardModal
           </div>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Unité & Seuil Alerte</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{med.unite} (Seuil : {med.seuilAlerte} U.)</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{med.unite} (Seuil : {med.seuilAlerte})</span>
           </div>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Prix Public Officiel</span>
@@ -169,7 +169,7 @@ export default function StockCardModal({ medicamentId, onClose }: StockCardModal
             </div>
             <div>
               <span style={{ fontSize: '0.75rem', color: '#1E40AF', display: 'block', fontWeight: 500 }}>Magasin Central</span>
-              <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1E3A8A' }}>{qtyCentral} U.</span>
+              <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1E3A8A' }}>{qtyCentral}</span>
             </div>
           </div>
 
@@ -182,7 +182,7 @@ export default function StockCardModal({ medicamentId, onClose }: StockCardModal
             </div>
             <div>
               <span style={{ fontSize: '0.75rem', color: '#065F46', display: 'block', fontWeight: 500 }}>Pharmacie Dispens.</span>
-              <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#064E3B' }}>{qtyPharmacie} U.</span>
+              <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#064E3B' }}>{qtyPharmacie}</span>
             </div>
           </div>
 
@@ -202,7 +202,7 @@ export default function StockCardModal({ medicamentId, onClose }: StockCardModal
                 Stock Global {totalStock <= med.seuilAlerte ? '(Seuil Critique)' : ''}
               </span>
               <span style={{ fontSize: '1.2rem', fontWeight: 700, color: totalStock <= med.seuilAlerte ? 'var(--danger-red)' : '#4C1D95' }}>
-                {totalStock} U.
+                {totalStock}
               </span>
             </div>
           </div>
@@ -313,7 +313,7 @@ export default function StockCardModal({ medicamentId, onClose }: StockCardModal
                         }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
                             {isAddition ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                            {isAddition ? '+' : ''}{m.quantite} U.
+                            {isAddition ? '+' : ''}{m.quantite}
                           </span>
                         </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
