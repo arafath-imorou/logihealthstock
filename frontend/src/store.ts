@@ -306,11 +306,11 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Authentication
   isLoggedIn: true,
-  currentUser: { email: 'pharma.port@logihealth.org', nomComplet: 'Dr. Jean-Pierre Lomé', role: 'Admin' },
+  currentUser: { email: 'pharma.port@logihealth.org', nomComplet: 'Christiane QUENUM', role: 'Admin' },
   
   login: (email, role) => {
     const names = {
-      Admin: 'Dr. Jean-Pierre Lomé (Admin)',
+      Admin: 'Christiane QUENUM (Admin)',
       Magasinier: 'M. Amadou Sow (Magasinier)',
       Pharmacien: 'Mme. Claire Touré (Pharmacienne)',
       Auditeur: 'Dr. Marc Dubois (Auditeur)'
@@ -1155,7 +1155,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Audit Logs
   auditLogs: [
-    { id: '1', date: new Date(Date.now() - 3600000 * 2).toISOString(), utilisateur: 'Admin (Dr. Jean-Pierre Lomé)', action: 'Initialisation Système', details: 'Démarrage et chargement des stocks initiaux.' }
+    { id: '1', date: new Date(Date.now() - 3600000 * 2).toISOString(), utilisateur: 'Admin (Christiane QUENUM)', action: 'Initialisation Système', details: 'Démarrage et chargement des stocks initiaux.' }
   ],
   addAuditLog: (action, details) => {
     const newLog: AuditLog = {

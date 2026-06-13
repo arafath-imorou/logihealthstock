@@ -3,7 +3,7 @@ import { Shield, UserPlus, Users as UsersIcon } from 'lucide-react';
 
 export default function Users() {
   const mockUsers = [
-    { id: '1', name: 'Dr. Jean-Pierre Lomé', email: 'admin@logihealth.org', role: 'Admin', status: 'Actif' },
+    { id: '1', name: 'Christiane QUENUM', email: 'admin@logihealth.org', role: 'Admin', status: 'Actif' },
     { id: '2', name: 'M. Amadou Sow', email: 'magasinier@logihealth.org', role: 'Magasinier', status: 'Actif' },
     { id: '3', name: 'Mme. Claire Touré', email: 'pharmacien@logihealth.org', role: 'Pharmacien', status: 'Actif' },
     { id: '4', name: 'Dr. Marc Dubois', email: 'auditeur@logihealth.org', role: 'Auditeur', status: 'Actif' },
