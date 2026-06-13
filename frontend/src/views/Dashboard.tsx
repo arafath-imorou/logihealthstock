@@ -119,9 +119,6 @@ export default function Dashboard() {
             <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.2rem' }}>
               {uniqueCentralProducts} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>Produits</span>
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-              {totalCentralUnits.toLocaleString()} unités en stock
-            </div>
           </div>
         </div>
 
@@ -134,9 +131,6 @@ export default function Dashboard() {
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pharmacie</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.2rem' }}>
               {uniquePharmacieProducts} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>Produits</span>
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-              {totalPharmacieUnits.toLocaleString()} unités en stock
             </div>
           </div>
         </div>
