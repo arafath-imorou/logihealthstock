@@ -292,15 +292,15 @@ export const useStore = create<AppState>((set, get) => ({
       get().addAuditLog('Synchronisation', 'Données synchronisées avec succès depuis Supabase !');
     } catch (err: any) {
       console.warn('Mode hors-ligne :', err.message);
-      // Fallback: use mock data if offline
-      set({
-        medicaments: initialMedicaments,
-        stockCentral: initialStockCentral,
-        stockPharmacie: initialStockPharmacie,
-        patients: initialPatients,
+      // Fallback: keep existing data if present to prevent data loss
+      set((state) => ({
+        medicaments: state.medicaments.length > 0 ? state.medicaments : initialMedicaments,
+        stockCentral: state.stockCentral.length > 0 ? state.stockCentral : initialStockCentral,
+        stockPharmacie: state.stockPharmacie.length > 0 ? state.stockPharmacie : initialStockPharmacie,
+        patients: state.patients.length > 0 ? state.patients : initialPatients,
         isOnline: false,
         syncing: false
-      });
+      }));
     }
   },
 
@@ -661,14 +661,48 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
 
+    const saveDispensation = async (patientId: string) => {
+      try {
+        const { data: dispData, error: dispError } = await supabase.from('dispensations').insert([{
+          patient_id: patientId,
+          numero_ordonnance: patientInfo.referenceDossier || null,
+          prescripteur: 'Médecin Externe'
+        }]).select('id');
+
+        if (dispError) {
+          console.error('Erreur de sauvegarde de la dispensation:', dispError);
+          return;
+        }
+
+        if (dispData && dispData[0]) {
+          const lines = transactionItems.map(tItem => ({
+            dispensation_id: dispData[0].id,
+            medicament_id: tItem.medicamentId.includes('m') ? null : tItem.medicamentId,
+            lot: tItem.lot,
+            quantite_delivree: tItem.quantiteDelivree
+          })).filter(x => x.medicament_id !== null);
+
+          if (lines.length > 0) {
+            const { error: linesErr } = await supabase.from('dispensation_lignes').insert(lines);
+            if (linesErr) {
+              console.error('Erreur de sauvegarde des lignes de dispensation:', linesErr);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Erreur inattendue dans saveDispensation:', e);
+      }
+    };
+
     // Register/Find Patient
     let patient = get().patients.find(
       (p) => p.nomComplet.toLowerCase() === patientInfo.nomComplet.toLowerCase()
     );
 
     if (!patient) {
+      const tempPatientId = 'p_' + Math.random().toString(36).substr(2, 9);
       patient = {
-        id: 'p_' + Math.random().toString(36).substr(2, 9),
+        id: tempPatientId,
         ...patientInfo
       };
       set((state) => ({ patients: [...state.patients, patient!] }));
@@ -683,72 +717,50 @@ export const useStore = create<AppState>((set, get) => ({
       }]).select().then(({ data, error }) => {
         if (error) console.error('Erreur de sauvegarde du patient:', error);
         if (!error && data && data[0]) {
-          const res = data as any[];
-          const realPatientId = res[0].id;
-          
+          const realPatientId = data[0].id;
           set((state) => ({
-            patients: state.patients.map(p => p.nomComplet === patientInfo.nomComplet ? { ...p, id: realPatientId } : p)
+            patients: state.patients.map(p => p.id === tempPatientId ? { ...p, id: realPatientId } : p)
           }));
-
-          // Link and Sync Dispensation with the newly created real UUID
-          try {
-            supabase.from('dispensations').insert([{
-              patient_id: realPatientId,
-              numero_ordonnance: patientInfo.referenceDossier || null,
-              prescripteur: 'Médecin Externe'
-            }]).select('id').then(({ data: dispData, error: dispError }) => {
-              if (dispError) console.error('Erreur de sauvegarde de la dispensation:', dispError);
-              if (!dispError && dispData && dispData[0]) {
-                const dispRes = dispData as any[];
-                const lines = transactionItems.map(tItem => ({
-                  dispensation_id: dispRes[0].id,
-                  medicament_id: tItem.medicamentId.includes('m') ? null : tItem.medicamentId,
-                  lot: tItem.lot,
-                  quantite_delivree: tItem.quantiteDelivree
-                })).filter(x => x.medicament_id !== null);
-
-                if (lines.length > 0) {
-                  supabase.from('dispensation_lignes').insert(lines).then(({ error: linesErr }) => {
-                    if (linesErr) console.error('Erreur de sauvegarde des lignes de dispensation:', linesErr);
-                  });
-                }
-              }
-            });
-          } catch (e) {
-            console.warn('Mode hors-ligne - Dispensation');
-          }
+          saveDispensation(realPatientId);
         }
       });
     } else {
-      // Patient already exists, sync dispensation immediately using existing UUID (if it's a valid database UUID and not local mock 'p1'/'p2')
-      try {
-        const dbPatientId = patient.id.includes('p') ? null : patient.id;
-        if (dbPatientId) {
-          supabase.from('dispensations').insert([{
-            patient_id: dbPatientId,
-            numero_ordonnance: patientInfo.referenceDossier || null,
-            prescripteur: 'Médecin Externe'
-          }]).select('id').then(({ data, error }) => {
-            if (error) console.error('Erreur de sauvegarde de la dispensation (patient existant):', error);
-            if (!error && data && data[0]) {
-              const res = data as any[];
-              const lines = transactionItems.map(tItem => ({
-                dispensation_id: res[0].id,
-                medicament_id: tItem.medicamentId.includes('m') ? null : tItem.medicamentId,
-                lot: tItem.lot,
-                quantite_delivree: tItem.quantiteDelivree
-              })).filter(x => x.medicament_id !== null);
-
-              if (lines.length > 0) {
-                supabase.from('dispensation_lignes').insert(lines).then(({ error: linesErr }) => {
-                  if (linesErr) console.error('Erreur de sauvegarde des lignes de dispensation (patient existant):', linesErr);
-                });
-              }
+      // Patient already exists. Let's check if the ID is a temporary local one.
+      if (patient.id.startsWith('p')) {
+        // Retrieve or insert the patient in Supabase
+        supabase.from('patients')
+          .select('id')
+          .eq('nom_complet', patient.nomComplet)
+          .then(({ data, error }) => {
+            if (!error && data && data.length > 0) {
+              const realPatientId = data[0].id;
+              set((state) => ({
+                patients: state.patients.map(p => p.nomComplet.toLowerCase() === patientInfo.nomComplet.toLowerCase() ? { ...p, id: realPatientId } : p)
+              }));
+              saveDispensation(realPatientId);
+            } else {
+              // Not found or error, insert the patient
+              supabase.from('patients').insert([{
+                nom_complet: patientInfo.nomComplet,
+                sexe: patientInfo.sexe,
+                age: patientInfo.age,
+                telephone: patientInfo.telephone,
+                reference_dossier: patientInfo.referenceDossier
+              }]).select().then(({ data: newData, error: newErr }) => {
+                if (newErr) console.error('Erreur de ré-insertion du patient existant:', newErr);
+                if (!newErr && newData && newData[0]) {
+                  const realPatientId = newData[0].id;
+                  set((state) => ({
+                    patients: state.patients.map(p => p.nomComplet.toLowerCase() === patientInfo.nomComplet.toLowerCase() ? { ...p, id: realPatientId } : p)
+                  }));
+                  saveDispensation(realPatientId);
+                }
+              });
             }
           });
-        }
-      } catch (e) {
-        console.warn('Mode hors-ligne - Dispensation');
+      } else {
+        // ID is a valid database UUID, sync dispensation directly
+        saveDispensation(patient.id);
       }
     }
 
