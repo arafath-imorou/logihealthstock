@@ -125,7 +125,7 @@ export default function Rapports() {
                       <td style={{ padding: '1rem' }}>{item.location}</td>
                       <td style={{ padding: '1rem', fontFamily: 'monospace' }}>{item.lot}</td>
                       <td style={{ padding: '1rem' }}>{item.expiration}</td>
-                      <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite} U.</td>
+                      <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite}</td>
                       <td style={{ padding: '1rem' }}>3 000 FCFA</td>
                       <td style={{ padding: '1rem', fontWeight: 700, color: 'var(--primary-blue)' }}>
                         {(item.quantite * 3000).toLocaleString()} FCFA

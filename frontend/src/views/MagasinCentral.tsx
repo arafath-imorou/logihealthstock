@@ -15,6 +15,16 @@ import {
 } from 'lucide-react';
 import { InventaireLigne } from '../store';
 
+const formatUnit = (unit?: string) => {
+  if (!unit) return '';
+  const firstWord = unit.trim().split(' ')[0];
+  const upper = firstWord.toUpperCase();
+  if (upper === 'U' || upper === 'U.' || upper === 'UNITÉ' || upper === 'UNITÉS' || upper === 'UNIT' || upper === 'UNITS') {
+    return '';
+  }
+  return ' ' + firstWord;
+};
+
 export default function MagasinCentral() {
   const { 
     stockCentral, 
@@ -388,7 +398,7 @@ export default function MagasinCentral() {
                             {item.expiration} {daysToExpiry <= 0 ? '(Expiré)' : ''}
                           </span>
                         </td>
-                        <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite} {med.unite.split(' ')[0]}</td>
+                        <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite}{formatUnit(med.unite)}</td>
                         <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{item.emplacement || 'Non défini'}</td>
                           <td style={{ padding: '1rem' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
@@ -487,7 +497,7 @@ export default function MagasinCentral() {
                     </label>
                     <input 
                       type="text" 
-                      value={item ? `${item.quantite} ${med?.unite || ''}` : ''}
+                      value={item ? `${item.quantite}${formatUnit(med?.unite)}` : ''}
                       disabled
                       style={{ 
                         width: '100%', 
@@ -616,7 +626,7 @@ export default function MagasinCentral() {
                           if (!med) return null;
                           return (
                             <option key={s.id} value={s.id}>
-                              {med.nom} {med.dosage} ({med.forme}) - Lot: {s.lot} (Exp: {s.expiration}) - Dispo: {s.quantite} U.
+                              {med.nom} {med.dosage} ({med.forme}) - Lot: {s.lot} (Exp: {s.expiration}) - Dispo: {s.quantite}
                             </option>
                           );
                         })}
@@ -713,7 +723,7 @@ export default function MagasinCentral() {
                                   <strong>Lot: {item.lot}</strong>
                                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Exp: {item.expiration}</div>
                                 </td>
-                                <td style={{ padding: '0.75rem', fontWeight: 600 }}>{item.quantite} U.</td>
+                                <td style={{ padding: '0.75rem', fontWeight: 600 }}>{item.quantite}</td>
                                 <td style={{ padding: '0.75rem' }}>
                                   <input 
                                     type="number"

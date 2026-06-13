@@ -124,7 +124,7 @@ export default function Expirations() {
                   <td style={{ padding: '1rem', color: statusColor, fontWeight: 700 }}>
                     {statusText}
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite} U.</td>
+                  <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite}</td>
                   <td style={{ padding: '1rem', textAlign: 'center' }}>
                     {days <= 0 && item.source === 'Magasin Central' ? (
                       <button 

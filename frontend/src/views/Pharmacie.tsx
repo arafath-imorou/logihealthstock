@@ -477,7 +477,7 @@ export default function Pharmacie() {
                         }}>
                           {isOut ? 'RUPTURE' : isLow ? 'STOCK FAIBLE' : 'OK'}
                         </span>
-                        <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{qty} U.</span>
+                        <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{qty}</span>
                       </div>
                     </div>
                   );
@@ -554,8 +554,8 @@ export default function Pharmacie() {
                         <td style={{ padding: '1rem' }}>{med.nom} {med.dosage} ({med.forme})</td>
                         <td style={{ padding: '1rem', fontFamily: 'monospace' }}>{item.lot}</td>
                         <td style={{ padding: '1rem' }}>{item.expiration}</td>
-                        <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite} U.</td>
-                        <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary-blue)' }}>{cmmValue} U./mois</td>
+                        <td style={{ padding: '1rem', fontWeight: 700 }}>{item.quantite}</td>
+                        <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary-blue)' }}>{cmmValue}</td>
                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                           <button 
                             type="button"
@@ -741,7 +741,7 @@ export default function Pharmacie() {
 
                       <div style={{ width: '120px', fontSize: '0.8rem', color: 'var(--text-muted)', paddingBottom: '0.5rem' }}>
                         {line.medicamentId && (
-                          <span>Dispo : <strong>{qtyInPh} U.</strong></span>
+                          <span>Dispo : <strong>{qtyInPh}</strong></span>
                         )}
                       </div>
 
@@ -786,7 +786,7 @@ export default function Pharmacie() {
                         .reduce((acc, s) => acc + s.quantite, 0);
                       if (line.quantite > qtyInPh) {
                         const medName = medicaments.find(m => m.id === line.medicamentId)?.nom || 'produit';
-                        alert(`Quantité insuffisante pour ${medName}. Disponible en pharmacie : ${qtyInPh} U.`);
+                        alert(`Quantité insuffisante pour ${medName}. Disponible en pharmacie : ${qtyInPh}`);
                         return;
                       }
                     }
@@ -881,7 +881,7 @@ export default function Pharmacie() {
                       return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
                           <td style={{ padding: '0.5rem', fontWeight: 600 }}>{med?.nom} {med?.dosage} ({med?.forme})</td>
-                          <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 700 }}>{line.quantite} U.</td>
+                          <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 700 }}>{line.quantite}</td>
                           <td style={{ padding: '0.5rem', textAlign: 'right' }}>{pu.toLocaleString()} FCFA</td>
                           <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 700, color: 'var(--primary-blue)' }}>{lineTotal.toLocaleString()} FCFA</td>
                         </tr>
@@ -1235,7 +1235,7 @@ export default function Pharmacie() {
                       return (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: idx < transfer.items.length - 1 ? '1px dashed var(--border-light)' : 'none', fontSize: '0.85rem' }}>
                           <span>📦 <strong>{med?.nom} {med?.dosage}</strong> ({med?.forme})</span>
-                          <span>Lot: <strong>{item.lotSource}</strong> (Exp: {item.expiration || 'N/A'}) - Qté: <strong>{item.quantiteDemandee} units</strong></span>
+                          <span>Lot: <strong>{item.lotSource}</strong> (Exp: {item.expiration || 'N/A'}) - Qté: <strong>{item.quantiteDemandee}</strong></span>
                         </div>
                       );
                     })}

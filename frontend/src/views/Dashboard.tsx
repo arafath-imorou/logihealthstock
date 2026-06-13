@@ -306,7 +306,7 @@ export default function Dashboard() {
                         <div style={{ fontWeight: 700, color: phStock === 0 ? 'var(--danger-red)' : 'var(--warning-orange)' }}>
                           {phStock === 0 ? 'RUPTURE' : `${phStock} Restants`}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>En réserve central : {cenStock} U.</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>En réserve central : {cenStock}</div>
                       </div>
                     </div>
                   );
