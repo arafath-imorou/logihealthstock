@@ -33,7 +33,8 @@ export default function MagasinCentral() {
     inventaires,
     creerSessionInventaire,
     sauvegarderBrouillonInventaire,
-    validerInventaire
+    validerInventaire,
+    updateMedicament
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'inventaire' | 'reception' | 'transferts' | 'session_inventaire'>('inventaire');
@@ -53,6 +54,7 @@ export default function MagasinCentral() {
   const [adjustReason, setAdjustReason] = useState('');
   const [editLot, setEditLot] = useState('');
   const [editExpiration, setEditExpiration] = useState('');
+  const [editPrice, setEditPrice] = useState<number>(0);
 
   const [showDestructionModal, setShowDestructionModal] = useState<string | null>(null);
   const [destructQty, setDestructQty] = useState(0);
@@ -410,10 +412,12 @@ export default function MagasinCentral() {
                                       setNewQty(item.quantite); 
                                       setEditLot(item.lot);
                                       setEditExpiration(item.expiration);
+                                      const med = medicaments.find(m => m.id === item.medicamentId);
+                                      setEditPrice(med ? med.prixVente : 0);
                                     }}
                                     className="btn"
                                     style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem', border: '1px solid var(--border-light)', background: '#F8FAFC' }}
-                                    title="Modifier le lot et la date de péremption"
+                                    title="Modifier le lot, la date de péremption et le prix de vente"
                                   >
                                     <Edit3 size={14} style={{ color: 'var(--primary-blue)' }} />
                                   </button>
@@ -447,7 +451,7 @@ export default function MagasinCentral() {
                 backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
               }}>
                 <div className="card" style={{ width: '420px', display: 'flex', flexDirection: 'column', gap: '1.2rem', padding: '1.5rem', borderRadius: '12px' }}>
-                  <h3 style={{ fontWeight: 700, margin: 0, fontSize: '1.2rem' }}>Modifier Lot & Péremption</h3>
+                  <h3 style={{ fontWeight: 700, margin: 0, fontSize: '1.2rem' }}>Modifier Lot, Péremption & Prix</h3>
                   {med && (
                     <div style={{ 
                       padding: '0.75rem', 
@@ -485,6 +489,18 @@ export default function MagasinCentral() {
                   </div>
                   <div>
                     <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>
+                      Prix de vente (FCFA) :
+                    </label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(Number(e.target.value))}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>
                       Quantité disponible (Non modifiable) :
                     </label>
                     <input 
@@ -508,6 +524,9 @@ export default function MagasinCentral() {
                     <button className="btn" style={{ background: '#E2E8F0' }} onClick={() => setShowAdjustModal(null)}>Annuler</button>
                     <button className="btn btn-primary" onClick={() => {
                       modifierLotExpirationCentral(showAdjustModal, editLot, editExpiration);
+                      if (med) {
+                        updateMedicament(med.id, { prixVente: editPrice });
+                      }
                       setShowAdjustModal(null);
                     }}>Valider</button>
                   </div>
