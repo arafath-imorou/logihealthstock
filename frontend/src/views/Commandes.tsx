@@ -33,6 +33,7 @@ export default function Commandes() {
   
   // Create Order Form States
   const [orderLines, setOrderLines] = useState<{ medicamentId: string; quantiteProposee: number; quantiteCommandee: number }[]>([]);
+  const [selectedMedId, setSelectedMedId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
 
@@ -364,93 +365,45 @@ export default function Commandes() {
           </div>
 
           {/* Add custom product selector */}
-          <div style={{ position: 'relative', maxWidth: '500px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Ajouter un autre produit au panier :</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <input 
-                  type="text" 
-                  placeholder="Rechercher un médicament (nom, code, DCI)..."
-                  value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setSearchFocused(true); }}
-                  onFocus={() => setSearchFocused(true)}
-                  style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2rem', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}
-                />
-                <Search size={16} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              </div>
-            </div>
-
-            {searchFocused && filteredMeds.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                backgroundColor: 'white',
-                border: '1px solid var(--border-light)',
-                borderRadius: '6px',
-                boxShadow: 'var(--shadow-lg)',
-                zIndex: 200,
-                marginTop: '0.25rem',
-                maxHeight: '200px',
-                overflowY: 'auto'
-              }}>
-                {filteredMeds.map(med => (
-                  <button
-                    key={med.id}
-                    type="button"
-                    onClick={() => handleAddMedToOrder(med.id)}
-                    style={{
-                      width: '100%',
-                      padding: '0.6rem 1rem',
-                      textAlign: 'left',
-                      border: 'none',
-                      background: 'none',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      borderBottom: '1px solid var(--border-light)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div>
-                      <strong>{med.nom} {med.dosage}</strong>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>({med.code})</span>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--primary-blue)', fontWeight: 600 }}>Ajouter +</span>
-                  </button>
+          <div style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block' }}>Ajouter un autre produit manuellement :</label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <select
+                value={selectedMedId}
+                onChange={(e) => setSelectedMedId(e.target.value)}
+                style={{ 
+                  flex: 1, 
+                  padding: '0.5rem', 
+                  borderRadius: '6px', 
+                  border: '1px solid var(--border-light)', 
+                  backgroundColor: 'white', 
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">-- Sélectionner un médicament dans le catalogue --</option>
+                {medicaments.map(med => (
+                  <option key={med.id} value={med.id}>
+                    {med.code} - {med.nom} {med.dosage} ({med.forme})
+                  </option>
                 ))}
-              </div>
-            )}
-            
-            {searchFocused && searchTerm && filteredMeds.length === 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                backgroundColor: 'white',
-                border: '1px solid var(--border-light)',
-                borderRadius: '6px',
-                boxShadow: 'var(--shadow-lg)',
-                zIndex: 200,
-                padding: '0.75rem',
-                textAlign: 'center',
-                fontSize: '0.85rem',
-                color: 'var(--text-muted)',
-                marginTop: '0.25rem'
-              }}>
-                Aucun produit trouvé.
-              </div>
-            )}
-
-            {searchFocused && (
-              <div 
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }}
-                onClick={() => setSearchFocused(false)}
-              />
-            )}
+              </select>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  if (!selectedMedId) {
+                    alert('Veuillez d\'abord sélectionner un médicament.');
+                    return;
+                  }
+                  handleAddMedToOrder(selectedMedId);
+                  setSelectedMedId('');
+                }}
+              >
+                <Plus size={16} /> Ajouter
+              </button>
+            </div>
           </div>
 
           {/* Lines Table */}
@@ -520,11 +473,11 @@ export default function Commandes() {
                           <button 
                             type="button" 
                             className="btn" 
-                            style={{ padding: '0.35rem', background: '#FEF2F2', border: '1px solid #FCA5A5', color: 'var(--danger-red)' }}
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem', background: '#FEF2F2', border: '1px solid #FCA5A5', color: 'var(--danger-red)', display: 'flex', alignItems: 'center', gap: '0.25rem', margin: '0 auto' }}
                             onClick={() => handleRemoveLine(idx)}
-                            title="Supprimer du panier"
+                            title="Retirer du panier"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} /> Retirer
                           </button>
                         </td>
                       </tr>
