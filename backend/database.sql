@@ -121,7 +121,7 @@ CREATE TABLE public.inventaire_lignes (
 CREATE TABLE public.commandes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     numero_commande VARCHAR(100) NOT NULL UNIQUE,
-    statut VARCHAR(50) NOT NULL DEFAULT 'En cours' CHECK (statut IN ('En cours', 'Réceptionnée', 'Annulée')),
+    statut VARCHAR(50) NOT NULL DEFAULT 'Brouillon' CHECK (statut IN ('Brouillon', 'En cours', 'Réceptionnée', 'Annulée')),
     cree_par VARCHAR(255) NOT NULL,
     date_commande TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

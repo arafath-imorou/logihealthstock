@@ -13,7 +13,9 @@ import {
   Package, 
   AlertTriangle,
   ArrowRightLeft,
-  X
+  X,
+  Printer,
+  Download
 } from 'lucide-react';
 
 export default function Commandes() {
@@ -28,7 +30,7 @@ export default function Commandes() {
     currentUser
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'actives' | 'creer' | 'historique'>('actives');
+  const [activeTab, setActiveTab] = useState<'brouillons' | 'actives' | 'creer' | 'historique'>('brouillons');
   const [selectedCmd, setSelectedCmd] = useState<Commande | null>(null);
   
   // Create Order Form States
@@ -183,7 +185,7 @@ export default function Commandes() {
     if (res.success) {
       alert(res.message);
       setOrderLines([]);
-      setActiveTab('actives');
+      setActiveTab('brouillons');
     }
   };
 
@@ -201,9 +203,205 @@ export default function Commandes() {
     }
   };
 
+  const handleConfirmOrder = async (id: string) => {
+    if (window.confirm('Voulez-vous vraiment confirmer et valider cette commande ? Elle passera en statut "En cours".')) {
+      const res = await modifierStatutCommande(id, 'En cours');
+      alert(res.message);
+      if (selectedCmd && selectedCmd.id === id) {
+        setSelectedCmd({ ...selectedCmd, statut: 'En cours' });
+      }
+    }
+  };
+
+  const handlePrint = (cmd: Commande) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Impossible d'ouvrir la fenêtre d'impression. Veuillez autoriser les fenêtres pop-up.");
+      return;
+    }
+    
+    const linesHtml = cmd.lignes.map(line => {
+      const med = medicaments.find(m => m.id === line.medicamentId);
+      return `
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold;">${med?.code || ''}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+            <div style="font-weight: bold;">${med?.nom || ''} ${med?.dosage || ''}</div>
+            <div style="font-size: 0.8em; color: #666;">${med?.dci || ''}</div>
+          </td>
+          <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${line.quantiteProposee}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center; font-weight: bold;">${line.quantiteCommandee}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bon de Commande ${cmd.numeroCommande}</title>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            margin: 40px;
+            line-height: 1.5;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 3px solid #1e3a8a;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .logo-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e3a8a;
+          }
+          .meta-info {
+            text-align: right;
+            font-size: 14px;
+          }
+          .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+          }
+          .details-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #f8fafc;
+          }
+          .details-box h3 {
+            margin-top: 0;
+            color: #1e3a8a;
+            font-size: 16px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 5px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+          }
+          th {
+            background-color: #f1f5f9;
+            color: #1e3a8a;
+            text-align: left;
+            padding: 12px 10px;
+            font-weight: 600;
+            border-bottom: 2px solid #cbd5e1;
+          }
+          .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+          }
+          @media print {
+            body { margin: 20px; }
+            button { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="logo-title">LogiHealth Stock</div>
+            <div style="font-size: 14px; color: #64748b;">Système de Gestion de Stock & Dispensation</div>
+          </div>
+          <div class="meta-info">
+            <strong>BON DE COMMANDE GROSSISTE</strong><br>
+            N°: <span style="font-family: monospace; font-weight: bold; color: #1e3a8a;">${cmd.numeroCommande}</span><br>
+            Date: ${new Date(cmd.dateCommande).toLocaleDateString()} ${new Date(cmd.dateCommande).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+          </div>
+        </div>
+        
+        <div class="details-grid">
+          <div class="details-box">
+            <h3>Informations Générales</h3>
+            <table style="width: 100%; border: none; margin: 0;">
+              <tr style="border: none;"><td style="padding: 4px 0; border: none; font-size: 14px; color: #64748b;">Statut:</td><td style="padding: 4px 0; border: none; font-weight: bold;">${cmd.statut}</td></tr>
+              <tr style="border: none;"><td style="padding: 4px 0; border: none; font-size: 14px; color: #64748b;">Créé par:</td><td style="padding: 4px 0; border: none; font-weight: bold;">${cmd.creePar}</td></tr>
+              <tr style="border: none;"><td style="padding: 4px 0; border: none; font-size: 14px; color: #64748b;">Destinataire:</td><td style="padding: 4px 0; border: none; font-weight: bold;">Grossiste Référent / Fournisseur</td></tr>
+            </table>
+          </div>
+          <div class="details-box">
+            <h3>Résumé de la Commande</h3>
+            <table style="width: 100%; border: none; margin: 0;">
+              <tr style="border: none;"><td style="padding: 4px 0; border: none; font-size: 14px; color: #64748b;">Nombre d'articles:</td><td style="padding: 4px 0; border: none; font-weight: bold; font-size: 16px;">${cmd.lignes.length}</td></tr>
+              <tr style="border: none;"><td style="padding: 4px 0; border: none; font-size: 14px; color: #64748b;">Quantité totale commandée:</td><td style="padding: 4px 0; border: none; font-weight: bold; font-size: 16px;">${cmd.lignes.reduce((acc, l) => acc + l.quantiteCommandee, 0)}</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <h3 style="color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 30px;">Détails des Articles Commandés</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 15%;">Code</th>
+              <th style="width: 55%;">Désignation Produit</th>
+              <th style="width: 15%; text-align: center;">Quantité Suggérée</th>
+              <th style="width: 15%; text-align: center;">Quantité Commandée</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linesHtml}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <p>Document généré automatiquement par LogiHealth Stock le ${new Date().toLocaleDateString()} à ${new Date().toLocaleTimeString()}.</p>
+          <p style="margin-top: 10px; font-weight: bold;">Signature de l'Établissement</p>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  const handleExportExcel = (cmd: Commande) => {
+    const headers = ['Code Produit', 'Nom Commercial', 'DCI', 'Quantité Suggérée', 'Quantité Commandée'];
+    const lines = cmd.lignes.map(line => {
+      const med = medicaments.find(m => m.id === line.medicamentId);
+      return [
+        med?.code || '',
+        med?.nom || '',
+        med?.dci || '',
+        line.quantiteProposee.toString(),
+        line.quantiteCommandee.toString()
+      ].map(val => `"${val.replace(/"/g, '""')}"`).join(';');
+    });
+    
+    const csvContent = '\uFEFF' + [headers.join(';'), ...lines].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Commande_${cmd.numeroCommande}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Lists
+  const drafts = commandes.filter(c => c.statut === 'Brouillon');
   const activeOrders = commandes.filter(c => c.statut === 'En cours');
-  const pastOrders = commandes.filter(c => c.statut !== 'En cours');
+  const pastOrders = commandes.filter(c => c.statut !== 'Brouillon' && c.statut !== 'En cours');
 
   // Search filter
   const filteredMeds = searchTerm.trim() === ''
@@ -223,6 +421,21 @@ export default function Commandes() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-light)', gap: '1rem', flexWrap: 'wrap' }}>
+        <button 
+          onClick={() => { setActiveTab('brouillons'); setSelectedCmd(null); }}
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'brouillons' ? '3px solid var(--primary-blue)' : '3px solid transparent',
+            color: activeTab === 'brouillons' ? 'var(--primary-blue)' : 'var(--text-muted)',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontSize: '0.95rem'
+          }}
+        >
+          📝 Brouillons ({drafts.length})
+        </button>
         <button 
           onClick={() => { setActiveTab('actives'); setSelectedCmd(null); }}
           style={{
@@ -271,6 +484,67 @@ export default function Commandes() {
           📜 Historique ({pastOrders.length})
         </button>
       </div>
+
+      {/* TAB: DRAFTS */}
+      {activeTab === 'brouillons' && !selectedCmd && (
+        <div className="card" style={{ padding: 0 }}>
+          <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-light)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Brouillons de commandes</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0' }}>Liste des commandes enregistrées en brouillon, prêtes à être vérifiées et validées.</p>
+          </div>
+
+          <div className="table-container" style={{ margin: 0 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-light)' }}>
+                  <th style={{ padding: '1rem' }}>Code Commande</th>
+                  <th style={{ padding: '1rem' }}>Date Commande</th>
+                  <th style={{ padding: '1rem' }}>Créateur</th>
+                  <th style={{ padding: '1rem', textAlign: 'center' }}>Nombre d'Articles</th>
+                  <th style={{ padding: '1rem' }}>Statut</th>
+                  <th style={{ padding: '1rem', textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drafts.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <ClipboardList size={48} style={{ color: 'var(--border-light)', marginBottom: '0.5rem' }} />
+                      <p style={{ fontWeight: 500 }}>Aucune commande en brouillon.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  drafts.map((cmd) => (
+                    <tr key={cmd.id} style={{ borderBottom: '1px solid var(--border-light)', transition: 'background-color 0.2s' }}>
+                      <td style={{ padding: '1rem', fontWeight: 700, color: 'var(--primary-blue)' }}>{cmd.numeroCommande}</td>
+                      <td style={{ padding: '1rem' }}>{new Date(cmd.dateCommande).toLocaleDateString()} {new Date(cmd.dateCommande).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td style={{ padding: '1rem' }}>{cmd.creePar}</td>
+                      <td style={{ padding: '1rem', textAlign: 'center', fontWeight: 600 }}>{cmd.lignes.length}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ padding: '0.25rem 0.6rem', borderRadius: '50px', backgroundColor: '#F1F5F9', color: '#475569', fontSize: '0.8rem', fontWeight: 700 }}>
+                          Brouillon
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                          <button 
+                            className="btn" 
+                            style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', border: '1px solid var(--border-light)', background: '#F8FAFC' }}
+                            onClick={() => setSelectedCmd(cmd)}
+                            title="Voir Détails & Valider"
+                          >
+                            <Eye size={14} style={{ color: 'var(--primary-blue)' }} /> Visualiser
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* TAB: ACTIVE ORDERS */}
       {activeTab === 'actives' && !selectedCmd && (
@@ -502,7 +776,7 @@ export default function Commandes() {
               className="btn btn-primary"
               disabled={orderLines.length === 0}
             >
-              <ClipboardList size={16} /> Envoyer la Commande au Grossiste
+              <ClipboardList size={16} /> Enregistrer la Commande
             </button>
           </div>
         </form>
@@ -583,8 +857,8 @@ export default function Commandes() {
                 borderRadius: '4px', 
                 fontSize: '0.75rem', 
                 fontWeight: 700,
-                backgroundColor: selectedCmd.statut === 'En cours' ? '#FFF3C4' : selectedCmd.statut === 'Réceptionnée' ? '#ECFDF5' : '#FEF2F2',
-                color: selectedCmd.statut === 'En cours' ? '#855D00' : selectedCmd.statut === 'Réceptionnée' ? '#047857' : 'var(--danger-red)'
+                backgroundColor: selectedCmd.statut === 'Brouillon' ? '#F1F5F9' : selectedCmd.statut === 'En cours' ? '#FFF3C4' : selectedCmd.statut === 'Réceptionnée' ? '#ECFDF5' : '#FEF2F2',
+                color: selectedCmd.statut === 'Brouillon' ? '#475569' : selectedCmd.statut === 'En cours' ? '#855D00' : selectedCmd.statut === 'Réceptionnée' ? '#047857' : 'var(--danger-red)'
               }}>
                 {selectedCmd.statut}
               </span>
@@ -596,6 +870,31 @@ export default function Commandes() {
               onClick={() => setSelectedCmd(null)}
             >
               <X size={16} /> Fermer
+            </button>
+          </div>
+
+          {/* Actions Bar (Export & Print) */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button 
+              className="btn" 
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#F8FAFC', border: '1px solid var(--border-light)', cursor: 'pointer' }}
+              onClick={() => handlePrint(selectedCmd)}
+            >
+              <Printer size={15} /> Imprimer
+            </button>
+            <button 
+              className="btn" 
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#F8FAFC', border: '1px solid var(--border-light)', cursor: 'pointer' }}
+              onClick={() => handlePrint(selectedCmd)}
+            >
+              <Download size={15} /> Télécharger PDF
+            </button>
+            <button 
+              className="btn" 
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#F8FAFC', border: '1px solid var(--border-light)', cursor: 'pointer' }}
+              onClick={() => handleExportExcel(selectedCmd)}
+            >
+              <Download size={15} /> Télécharger Excel
             </button>
           </div>
 
@@ -650,6 +949,24 @@ export default function Commandes() {
               </table>
             </div>
           </div>
+
+          {selectedCmd.statut === 'Brouillon' && currentUser?.role !== 'Auditeur' && (
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-light)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+              <button 
+                className="btn btn-primary"
+                onClick={() => handleConfirmOrder(selectedCmd.id)}
+              >
+                <CheckCircle size={16} /> Confirmer & Valider la Commande
+              </button>
+              <button 
+                className="btn" 
+                style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: 'var(--danger-red)' }}
+                onClick={() => handleUpdateStatus(selectedCmd.id, 'Annulée')}
+              >
+                <XCircle size={16} /> Annuler la Commande
+              </button>
+            </div>
+          )}
 
           {selectedCmd.statut === 'En cours' && currentUser?.role !== 'Auditeur' && (
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-light)', paddingTop: '1rem', marginTop: '0.5rem' }}>

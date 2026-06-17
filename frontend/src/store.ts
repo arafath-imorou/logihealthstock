@@ -128,7 +128,7 @@ export interface Commande {
   id: string;
   numeroCommande: string;
   dateCommande: string;
-  statut: 'En cours' | 'Réceptionnée' | 'Annulée';
+  statut: 'Brouillon' | 'En cours' | 'Réceptionnée' | 'Annulée';
   creePar: string;
   lignes: CommandeLigne[];
 }
@@ -142,7 +142,7 @@ interface AppState {
   // Supplier Orders (Commandes)
   commandes: Commande[];
   creerCommande: (lignes: Omit<CommandeLigne, 'id'>[]) => Promise<{ success: boolean; message: string }>;
-  modifierStatutCommande: (id: string, statut: 'Réceptionnée' | 'Annulée') => Promise<{ success: boolean; message: string }>;
+  modifierStatutCommande: (id: string, statut: 'En cours' | 'Réceptionnée' | 'Annulée') => Promise<{ success: boolean; message: string }>;
 
   // Authentication
   isLoggedIn: boolean;
@@ -1585,7 +1585,7 @@ export const useStore = create<AppState>((set, get) => ({
       id: cmdId,
       numeroCommande,
       dateCommande: today.toISOString(),
-      statut: 'En cours',
+      statut: 'Brouillon',
       creePar: userNom,
       lignes: cmdLignes
     };
@@ -1600,7 +1600,7 @@ export const useStore = create<AppState>((set, get) => ({
       const { data: dbCmd, error: cmdErr } = await supabase.from('commandes').insert([{
         numero_commande: numeroCommande,
         cree_par: userNom,
-        statut: 'En cours'
+        statut: 'Brouillon'
       }]).select('id');
 
       if (!cmdErr && dbCmd && dbCmd[0]) {
@@ -1619,7 +1619,7 @@ export const useStore = create<AppState>((set, get) => ({
     return { success: true, message: `Commande ${numeroCommande} créée avec succès !` };
   },
 
-  modifierStatutCommande: async (id, statut) => {
+  modifierStatutCommande: async (id, statut: 'En cours' | 'Réceptionnée' | 'Annulée') => {
     set((state) => ({
       commandes: state.commandes.map(cmd => cmd.id === id ? { ...cmd, statut } : cmd)
     }));
