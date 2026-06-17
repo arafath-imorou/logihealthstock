@@ -116,3 +116,23 @@ CREATE TABLE public.inventaire_lignes (
     commentaire TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Table des Commandes
+CREATE TABLE public.commandes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    numero_commande VARCHAR(100) NOT NULL UNIQUE,
+    statut VARCHAR(50) NOT NULL DEFAULT 'En cours' CHECK (statut IN ('En cours', 'Réceptionnée', 'Annulée')),
+    cree_par VARCHAR(255) NOT NULL,
+    date_commande TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Lignes de Commande
+CREATE TABLE public.commande_lignes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    commande_id UUID REFERENCES public.commandes(id) ON DELETE CASCADE,
+    medicament_id UUID REFERENCES public.medicaments(id) ON DELETE CASCADE,
+    quantite_proposee INTEGER NOT NULL,
+    quantite_commandee INTEGER NOT NULL CHECK (quantite_commandee >= 0),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

@@ -9,6 +9,7 @@ import Expirations from './views/Expirations';
 import Rapports from './views/Rapports';
 import Users from './views/Users';
 import Settings from './views/Settings';
+import Commandes from './views/Commandes';
 import { Wifi, WifiOff, Menu } from 'lucide-react';
 
 function App() {
@@ -38,6 +39,8 @@ function App() {
         return <Expirations />;
       case 'rapports':
         return <Rapports />;
+      case 'commandes':
+        return <Commandes />;
       case 'users':
         return <Users />;
       case 'settings':

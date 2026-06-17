@@ -117,11 +117,32 @@ export interface Inventaire {
   createdAt: string;
 }
 
+export interface CommandeLigne {
+  id: string;
+  medicamentId: string;
+  quantiteProposee: number;
+  quantiteCommandee: number;
+}
+
+export interface Commande {
+  id: string;
+  numeroCommande: string;
+  dateCommande: string;
+  statut: 'En cours' | 'Réceptionnée' | 'Annulée';
+  creePar: string;
+  lignes: CommandeLigne[];
+}
+
 interface AppState {
   // Supabase Sync States
   isOnline: boolean;
   syncing: boolean;
   fetchFromSupabase: () => Promise<void>;
+
+  // Supplier Orders (Commandes)
+  commandes: Commande[];
+  creerCommande: (lignes: Omit<CommandeLigne, 'id'>[]) => Promise<{ success: boolean; message: string }>;
+  modifierStatutCommande: (id: string, statut: 'Réceptionnée' | 'Annulée') => Promise<{ success: boolean; message: string }>;
 
   // Authentication
   isLoggedIn: boolean;
@@ -276,12 +297,42 @@ export const useStore = create<AppState>((set, get) => ({
         });
       }
 
+      // 6. Fetch Commandes & Commande Lignes
+      let mappedCommandes: Commande[] = [];
+      try {
+        const { data: cmdData, error: cmdError } = await supabase.from('commandes').select('*');
+        if (!cmdError && cmdData) {
+          const { data: cmdLignesData } = await supabase.from('commande_lignes').select('*');
+          mappedCommandes = cmdData.map((cmd: any) => {
+            const lignes = (cmdLignesData || [])
+              .filter((l: any) => l.commande_id === cmd.id)
+              .map((l: any) => ({
+                id: l.id,
+                medicamentId: l.medicament_id,
+                quantiteProposee: l.quantite_proposee,
+                quantiteCommandee: l.quantite_commandee
+              }));
+            return {
+              id: cmd.id,
+              numeroCommande: cmd.numero_commande,
+              dateCommande: cmd.date_commande || cmd.created_at,
+              statut: cmd.statut,
+              creePar: cmd.cree_par,
+              lignes
+            };
+          });
+        }
+      } catch (e) {
+        console.warn('Table commandes non disponible ou hors-ligne:', e);
+      }
+
       set({
         medicaments: mappedMeds,
         stockCentral: mappedCentral,
         stockPharmacie: mappedPharmacy,
         patients: mappedPatients,
         dispensations: mappedDispensations,
+        commandes: mappedCommandes.length > 0 ? mappedCommandes : get().commandes,
         isOnline: true,
         syncing: false
       });
@@ -298,6 +349,7 @@ export const useStore = create<AppState>((set, get) => ({
         stockCentral: state.stockCentral.length > 0 ? state.stockCentral : initialStockCentral,
         stockPharmacie: state.stockPharmacie.length > 0 ? state.stockPharmacie : initialStockPharmacie,
         patients: state.patients.length > 0 ? state.patients : initialPatients,
+        commandes: state.commandes.length > 0 ? state.commandes : [],
         isOnline: false,
         syncing: false
       }));
@@ -617,6 +669,9 @@ export const useStore = create<AppState>((set, get) => ({
   // Patients & Dispensation
   patients: [],
   dispensations: [],
+
+  // Supplier Orders (Commandes)
+  commandes: [],
 
   effectuerDispensation: (patientInfo, items) => {
     const transactionItems: DispensationItem[] = [];
@@ -1511,5 +1566,77 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (e) {
       console.warn('Mode hors-ligne - Chargement des inventaires');
     }
+  },
+
+  creerCommande: async (lignes) => {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+    const rand = Math.random().toString(36).substr(2, 4).toUpperCase();
+    const numeroCommande = `CMD-${dateStr}-${rand}`;
+    const userNom = get().currentUser?.nomComplet || 'Utilisateur';
+
+    const cmdId = 'cmd_' + Math.random().toString(36).substr(2, 9);
+    const cmdLignes: CommandeLigne[] = lignes.map(l => ({
+      id: 'cl_' + Math.random().toString(36).substr(2, 9),
+      ...l
+    }));
+
+    const newCmd: Commande = {
+      id: cmdId,
+      numeroCommande,
+      dateCommande: today.toISOString(),
+      statut: 'En cours',
+      creePar: userNom,
+      lignes: cmdLignes
+    };
+
+    set((state) => ({
+      commandes: [newCmd, ...state.commandes]
+    }));
+
+    get().addAuditLog('Création Commande', `Commande ${numeroCommande} créée pour ${lignes.length} produit(s).`);
+
+    try {
+      const { data: dbCmd, error: cmdErr } = await supabase.from('commandes').insert([{
+        numero_commande: numeroCommande,
+        cree_par: userNom,
+        statut: 'En cours'
+      }]).select('id');
+
+      if (!cmdErr && dbCmd && dbCmd[0]) {
+        const insertLignes = cmdLignes.map(l => ({
+          commande_id: dbCmd[0].id,
+          medicament_id: l.medicamentId,
+          quantite_proposee: l.quantiteProposee,
+          quantite_commandee: l.quantiteCommandee
+        }));
+        await supabase.from('commande_lignes').insert(insertLignes);
+      }
+    } catch (e) {
+      console.warn('Mode hors-ligne ou table commandes non configurée.');
+    }
+
+    return { success: true, message: `Commande ${numeroCommande} créée avec succès !` };
+  },
+
+  modifierStatutCommande: async (id, statut) => {
+    set((state) => ({
+      commandes: state.commandes.map(cmd => cmd.id === id ? { ...cmd, statut } : cmd)
+    }));
+
+    const cmd = get().commandes.find(c => c.id === id);
+    const numCmd = cmd ? cmd.numeroCommande : id;
+    get().addAuditLog('Statut Commande', `Commande ${numCmd} modifiée : ${statut}`);
+
+    try {
+      await supabase.from('commandes').update({ statut }).eq('id', id);
+      if (cmd && cmd.numeroCommande) {
+        await supabase.from('commandes').update({ statut }).eq('numero_commande', cmd.numeroCommande);
+      }
+    } catch (e) {
+      console.warn('Mode hors-ligne.');
+    }
+
+    return { success: true, message: `Statut de la commande mis à jour : ${statut}.` };
   }
 }));

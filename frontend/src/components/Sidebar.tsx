@@ -38,6 +38,7 @@ export default function Sidebar({ currentView, setView, sidebarOpen, setSidebarO
     { id: 'magasin', label: 'Magasin Central', icon: Warehouse, roles: ['Admin', 'Magasinier', 'Auditeur'] },
     { id: 'pharmacie', label: 'Pharmacie & Dispensation', icon: PlusSquare, roles: ['Admin', 'Pharmacien', 'Auditeur'] },
     { id: 'expirations', label: 'Gestion Expirations', icon: AlertTriangle, roles: ['Admin', 'Magasinier', 'Auditeur'] },
+    { id: 'commandes', label: 'Commandes', icon: ClipboardList, roles: ['Admin', 'Magasinier', 'Auditeur'] },
     { id: 'rapports', label: 'Rapports', icon: FileBarChart2, roles: ['Admin', 'Auditeur', 'Magasinier', 'Pharmacien'] },
     { id: 'users', label: 'Utilisateurs', icon: Users, roles: ['Admin'] },
     { id: 'settings', label: 'Paramètres', icon: Settings, roles: ['Admin'] },
