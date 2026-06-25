@@ -455,7 +455,7 @@ export default function Pharmacie() {
             <div className="card">
               <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem' }}>📈 Aperçu des Quantités en Rayons</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {medicaments.map(med => {
+                {[...medicaments].sort((a, b) => a.nom.localeCompare(b.nom)).map(med => {
                   const qty = stockPharmacie.filter(s => s.medicamentId === med.id).reduce((acc, s) => acc + s.quantite, 0);
                   const isLow = qty <= med.seuilAlerte && qty > 0;
                   const isOut = qty === 0;
