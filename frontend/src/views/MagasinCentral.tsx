@@ -186,6 +186,11 @@ export default function MagasinCentral() {
                           item.lot.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCat = categoryFilter === '' || med.categorie === categoryFilter;
     return matchesSearch && matchesCat;
+  }).sort((a, b) => {
+    const medA = medicaments.find(m => m.id === a.medicamentId);
+    const medB = medicaments.find(m => m.id === b.medicamentId);
+    if (!medA || !medB) return 0;
+    return medA.nom.localeCompare(medB.nom);
   });
 
   return (
