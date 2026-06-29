@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore, Medicament, StockItem } from '../store';
 import { 
   Plus, 
@@ -109,6 +109,17 @@ export default function Pharmacie() {
   const [historySearch, setHistorySearch] = useState('');
   const [showPharmaReceptionModal, setShowPharmaReceptionModal] = useState<string | null>(null);
   const [selectedStockCardMedId, setSelectedStockCardMedId] = useState<string | null>(null);
+
+  // Filter States for Dispensation History
+  const [filterType, setFilterType] = useState<'all' | 'day' | 'month' | 'custom'>('all');
+  const [filterDay, setFilterDay] = useState(new Date().toISOString().split('T')[0]);
+  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [filterEndDate, setFilterEndDate] = useState(new Date().toISOString().split('T')[0]);
 
   // 1. New Dispensation Form States
   const [dispStep, setDispStep] = useState<1 | 2 | 3>(1);
@@ -917,79 +928,343 @@ export default function Pharmacie() {
         </form>
       )}
 
-      {activeTab === 'historique' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
-          <div style={{ position: 'relative', maxWidth: '400px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
-            <input 
-              type="text" 
-              placeholder="Rechercher par patient..."
-              value={historySearch}
-              onChange={(e) => setHistorySearch(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.5rem 0.5rem 0.5rem 2.2rem',
-                borderRadius: '8px',
-                border: '1px solid var(--border-light)',
-                fontSize: '0.9rem',
-                outline: 'none'
-              }}
-            />
-          </div>
+      {activeTab === 'historique' && (() => {
+        // Filter dispensations based on local date timezone
+        const filteredDispensations = dispensations.filter((d) => {
+          const matchesSearch = d.patientName.toLowerCase().includes(historySearch.toLowerCase());
+          if (!matchesSearch) return false;
 
-          <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-light)' }}>
-                  <th style={{ padding: '1rem' }}>Date / Heure</th>
-                  <th style={{ padding: '1rem' }}>Patient</th>
-                  <th style={{ padding: '1rem' }}>Médicaments Délivrés</th>
-                  <th style={{ padding: '1rem' }}>Pharmacien</th>
-                  <th style={{ padding: '1rem', textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dispensations.filter(d => d.patientName.toLowerCase().includes(historySearch.toLowerCase())).length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      Aucune dispensation enregistrée.
-                    </td>
-                  </tr>
-                ) : (
-                  dispensations.filter(d => d.patientName.toLowerCase().includes(historySearch.toLowerCase())).map((d) => (
-                    <tr key={d.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                      <td style={{ padding: '1rem' }}>{new Date(d.date).toLocaleString()}</td>
-                      <td style={{ padding: '1rem', fontWeight: 600 }}>{d.patientName}</td>
-                      <td style={{ padding: '1rem' }}>
-                        {d.items.map((it, idx) => {
-                          const med = medicaments.find(m => m.id === it.medicamentId);
-                          return (
-                            <div key={idx} style={{ fontSize: '0.85rem' }}>
-                              • {med?.nom} - Qté: <strong>{it.quantiteDelivree}</strong> (Lot: {it.lot})
-                            </div>
-                          );
-                        })}
-                      </td>
-                      <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{d.pharmacien}</td>
-                      <td style={{ padding: '1rem', textAlign: 'center' }}>
-                        <button 
-                          className="btn" 
-                          onClick={() => { alert(`Impression du ticket pour ${d.patientName}`); }}
-                          style={{ padding: '0.3rem 0.5rem', background: '#F1F5F9', border: '1px solid var(--border-light)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                        >
-                          <Printer size={12} /> Ticket
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+          if (filterType === 'all') return true;
+
+          const localDate = new Date(d.date);
+          const year = localDate.getFullYear();
+          const month = String(localDate.getMonth() + 1).padStart(2, '0');
+          const day = String(localDate.getDate()).padStart(2, '0');
+          const localDateStr = `${year}-${month}-${day}`;
+          const localMonthStr = `${year}-${month}`;
+
+          if (filterType === 'day') {
+            return localDateStr === filterDay;
+          }
+
+          if (filterType === 'month') {
+            return localMonthStr === filterMonth;
+          }
+
+          if (filterType === 'custom') {
+            return localDateStr >= filterStartDate && localDateStr <= filterEndDate;
+          }
+
+          return true;
+        });
+
+        // Compute financial totals and top products sold
+        const financialSummary = (() => {
+          let totalRevenue = 0;
+          let totalItemsCount = 0;
+          const productStats: { [medId: string]: { nom: string; code: string; quantite: number; total: number } } = {};
+
+          filteredDispensations.forEach(d => {
+            d.items.forEach(it => {
+              const med = medicaments.find(m => m.id === it.medicamentId);
+              const price = med ? med.prixVente : 0;
+              const lineTotal = it.quantiteDelivree * price;
+
+              totalRevenue += lineTotal;
+              totalItemsCount += it.quantiteDelivree;
+
+              if (it.medicamentId) {
+                if (!productStats[it.medicamentId]) {
+                  productStats[it.medicamentId] = {
+                    nom: med ? med.nom : 'Inconnu',
+                    code: med ? med.code : '',
+                    quantite: 0,
+                    total: 0
+                  };
+                }
+                productStats[it.medicamentId].quantite += it.quantiteDelivree;
+                productStats[it.medicamentId].total += lineTotal;
+              }
+            });
+          });
+
+          const sortedProducts = Object.values(productStats).sort((a, b) => b.total - a.total);
+
+          return {
+            totalRevenue,
+            totalDispensations: filteredDispensations.length,
+            totalItemsCount,
+            productBreakdown: sortedProducts
+          };
+        })();
+
+        // Calculate single dispensation total cost
+        const calculateDispensationTotal = (disp: any) => {
+          return disp.items.reduce((sum: number, item: any) => {
+            const med = medicaments.find(m => m.id === item.medicamentId);
+            const price = med ? med.prixVente : 0;
+            return sum + (item.quantiteDelivree * price);
+          }, 0);
+        };
+
+        return (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'flex-start' }}>
+            {/* Left Column - Filters and Table */}
+            <div style={{ flex: '1 1 600px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              
+              {/* Filter Controls Row */}
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: '1rem', 
+                alignItems: 'center', 
+                backgroundColor: 'white', 
+                padding: '1rem', 
+                borderRadius: '10px', 
+                border: '1px solid var(--border-light)' 
+              }}>
+                {/* Search input */}
+                <div style={{ position: 'relative', minWidth: '220px', flex: 1 }}>
+                  <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+                  <input 
+                    type="text" 
+                    placeholder="Rechercher par patient..."
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem 0.5rem 0.5rem 2.2rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                {/* Filter Selector */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Période :</span>
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value as any)}
+                    style={{
+                      padding: '0.5rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      fontSize: '0.9rem',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="all">Toutes les dates</option>
+                    <option value="day">Par jour</option>
+                    <option value="month">Par mois</option>
+                    <option value="custom">Période personnalisée</option>
+                  </select>
+                </div>
+
+                {/* Date Inputs */}
+                {filterType === 'day' && (
+                  <div>
+                    <input
+                      type="date"
+                      value={filterDay}
+                      onChange={(e) => setFilterDay(e.target.value)}
+                      style={{
+                        padding: '0.5rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-light)',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
 
-        </div>
-      )}
+                {filterType === 'month' && (
+                  <div>
+                    <input
+                      type="month"
+                      value={filterMonth}
+                      onChange={(e) => setFilterMonth(e.target.value)}
+                      style={{
+                        padding: '0.5rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-light)',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {filterType === 'custom' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      type="date"
+                      value={filterStartDate}
+                      onChange={(e) => setFilterStartDate(e.target.value)}
+                      style={{
+                        padding: '0.5rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-light)',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>au</span>
+                    <input
+                      type="date"
+                      value={filterEndDate}
+                      onChange={(e) => setFilterEndDate(e.target.value)}
+                      style={{
+                        padding: '0.5rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-light)',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Dispensations Table */}
+              <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-light)' }}>
+                      <th style={{ padding: '1rem' }}>Date / Heure</th>
+                      <th style={{ padding: '1rem' }}>Patient</th>
+                      <th style={{ padding: '1rem' }}>Médicaments Délivrés</th>
+                      <th style={{ padding: '1rem' }}>Pharmacien</th>
+                      <th style={{ padding: '1rem', textAlign: 'right' }}>Montant</th>
+                      <th style={{ padding: '1rem', textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDispensations.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Aucune dispensation enregistrée pour cette sélection.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDispensations.map((d) => (
+                        <tr key={d.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td style={{ padding: '1rem' }}>{new Date(d.date).toLocaleString()}</td>
+                          <td style={{ padding: '1rem', fontWeight: 600 }}>{d.patientName}</td>
+                          <td style={{ padding: '1rem' }}>
+                            {d.items.map((it, idx) => {
+                              const med = medicaments.find(m => m.id === it.medicamentId);
+                              return (
+                                <div key={idx} style={{ fontSize: '0.85rem' }}>
+                                  • {med?.nom} - Qté: <strong>{it.quantiteDelivree}</strong> (Lot: {it.lot})
+                                </div>
+                              );
+                            })}
+                          </td>
+                          <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{d.pharmacien}</td>
+                          <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)' }}>
+                            {calculateDispensationTotal(d).toLocaleString()} FCFA
+                          </td>
+                          <td style={{ padding: '1rem', textAlign: 'center' }}>
+                            <button 
+                              className="btn" 
+                              onClick={() => { alert(`Impression du ticket pour ${d.patientName}`); }}
+                              style={{ padding: '0.3rem 0.5rem', background: '#F1F5F9', border: '1px solid var(--border-light)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                            >
+                              <Printer size={12} /> Ticket
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Right Column - Point Financier */}
+            <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'sticky', top: '10px' }}>
+              <div className="card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 1rem 0', color: 'var(--text-main)', borderBottom: '2px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+                  📊 Point Financier
+                </h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Chiffre d'Affaires */}
+                  <div style={{ backgroundColor: '#F0F9FF', padding: '1rem', borderRadius: '10px', border: '1px solid #BAE6FD' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0369A1', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Chiffre d'Affaires
+                    </span>
+                    <span style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0369A1', display: 'block', marginTop: '0.25rem' }}>
+                      {financialSummary.totalRevenue.toLocaleString()} FCFA
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    {/* Total Bons */}
+                    <div style={{ backgroundColor: '#F8FAFC', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Nombre de Bons</span>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', display: 'block', marginTop: '0.1rem' }}>
+                        {financialSummary.totalDispensations}
+                      </span>
+                    </div>
+                    {/* Unités vendues */}
+                    <div style={{ backgroundColor: '#F8FAFC', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Unités Délivrées</span>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', display: 'block', marginTop: '0.1rem' }}>
+                        {financialSummary.totalItemsCount}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Top Products breakdown */}
+                  <div>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: '0.5rem 0 0.5rem 0', color: 'var(--text-main)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Détail par produit</span>
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.75rem' }}>Val. (FCFA)</span>
+                    </h4>
+                    {financialSummary.productBreakdown.length === 0 ? (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', margin: '1rem 0' }}>
+                        Aucune vente sur cette période.
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                        {financialSummary.productBreakdown.map((p, idx) => (
+                          <div key={idx} style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            fontSize: '0.8rem', 
+                            padding: '0.4rem 0.5rem', 
+                            backgroundColor: '#F8FAFC', 
+                            borderRadius: '6px',
+                            borderLeft: '3px solid var(--primary-blue)'
+                          }}>
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '170px' }}>
+                              <strong style={{ color: 'var(--text-main)' }}>{p.nom}</strong>
+                              <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Qté: {p.quantite}</span>
+                            </div>
+                            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                              {p.total.toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+          </div>
+        );
+      })()}
 
       {/* Restock Request Modal */}
       {showRestockModal && (
