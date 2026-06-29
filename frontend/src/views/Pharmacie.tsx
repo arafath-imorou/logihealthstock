@@ -293,13 +293,18 @@ export default function Pharmacie() {
     setSelectedInvId(null);
   };
 
-  // Filter stocks
+  // Filter and sort stocks alphabetically by product name
   const filteredStock = stockPharmacie.filter(item => {
     const med = medicaments.find(m => m.id === item.medicamentId);
     if (!med) return false;
     return med.nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
            med.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
            item.lot.toLowerCase().includes(searchTerm.toLowerCase());
+  }).sort((a, b) => {
+    const medA = medicaments.find(m => m.id === a.medicamentId);
+    const medB = medicaments.find(m => m.id === b.medicamentId);
+    if (!medA || !medB) return 0;
+    return medA.nom.localeCompare(medB.nom);
   });
 
   return (
