@@ -340,6 +340,82 @@ export const useStore = create<AppState>((set, get) => ({
       // Load physical inventories
       await get().chargerInventaires();
 
+      // Reconstruct movements from database tables
+      const dbMovements: StockMovement[] = [];
+
+      // 1. From dispensations (Sorties Pharmacie)
+      const currentDispensations = get().dispensations;
+      currentDispensations.forEach((d) => {
+        d.items.forEach((it) => {
+          dbMovements.push({
+            id: `mvt_disp_${d.id}_${it.medicamentId}_${it.lot}`,
+            medicamentId: it.medicamentId,
+            date: d.date,
+            type: 'Dispensation',
+            lot: it.lot,
+            quantite: -it.quantiteDelivree,
+            stockType: 'Pharmacie',
+            operateur: d.pharmacien || 'Pharmacien',
+            details: `Sortie patient. Dossier: ${d.patientName}${d.numeroOrdonnance ? ', Ord: ' + d.numeroOrdonnance : ''}`
+          });
+        });
+      });
+
+      // 2. From inventaires (Ajustements Magasin / Pharmacie)
+      const currentInvs = get().inventaires;
+      currentInvs.forEach((inv) => {
+        if (inv.statut === 'Validé') {
+          inv.lignes.forEach((line) => {
+            if (line.ecart !== null && line.ecart !== 0) {
+              dbMovements.push({
+                id: `mvt_inv_${inv.id}_${line.medicamentId}_${line.lot}`,
+                medicamentId: line.medicamentId,
+                date: inv.createdAt || inv.dateInventaire,
+                type: 'Ajustement',
+                lot: line.lot,
+                quantite: line.ecart,
+                stockType: inv.typeStock,
+                operateur: inv.creePar || 'Système',
+                details: `Ajustement inventaire physique. Commentaire: ${line.commentaire || 'Aucun'}`
+              });
+            }
+          });
+        }
+      });
+
+      // 3. Initial stocks (Initialisations Magasin & Pharmacie)
+      mappedCentral.forEach((item) => {
+        dbMovements.push({
+          id: `mvt_init_mag_${item.id}`,
+          medicamentId: item.medicamentId,
+          date: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
+          type: 'Entrée Fournisseur',
+          lot: item.lot,
+          quantite: item.quantite,
+          stockType: 'Magasin',
+          operateur: 'Système',
+          details: `Stock initial importé (Magasin Central)`
+        });
+      });
+
+      mappedPharmacy.forEach((item) => {
+        dbMovements.push({
+          id: `mvt_init_ph_${item.id}`,
+          medicamentId: item.medicamentId,
+          date: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
+          type: 'Transfert',
+          lot: item.lot,
+          quantite: item.quantite,
+          stockType: 'Pharmacie',
+          operateur: 'Système',
+          details: `Stock initial importé (Pharmacie)`
+        });
+      });
+
+      dbMovements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      set({ movements: dbMovements });
+
       get().addAuditLog('Synchronisation', 'Données synchronisées avec succès depuis Supabase !');
     } catch (err: any) {
       console.warn('Mode hors-ligne :', err.message);
